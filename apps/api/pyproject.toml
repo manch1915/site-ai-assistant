@@ -20,6 +20,7 @@ dependencies = [
     "pwdlib[argon2]>=0.3",
     "aiogram>=3.31",
     "python-multipart>=0.0.20",
+    "defusedxml>=0.7.1",
 ]
 
 [project.optional-dependencies]
@@ -60,7 +61,7 @@ mypy_path = "src"
 packages = ["app"]
 
 [[tool.mypy.overrides]]
-module = ["trafilatura.*", "fastembed.*", "saq.*", "docx.*", "pgvector.*"]
+module = ["trafilatura.*", "fastembed.*", "saq.*", "docx.*", "pgvector.*", "defusedxml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
