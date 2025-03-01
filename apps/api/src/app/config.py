@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     embeddings_base_url: str = ""
     embeddings_api_key: str = ""
     embedding_dim: int = 384
+    # Raw cosine scores of e5 sit in a narrow band, so confidence is rescaled between these.
+    similarity_floor: float = 0.74
+    similarity_ceiling: float = 0.88
 
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""
@@ -36,6 +39,7 @@ class Settings(BaseSettings):
     daily_token_limit: int = 400_000
     widget_rate_per_minute: int = 12
     crawl_max_pages: int = 150
+    crawl_allow_private: bool = False
     upload_max_bytes: int = 10 * 1024 * 1024
     upload_dir: str = "storage/uploads"
 
