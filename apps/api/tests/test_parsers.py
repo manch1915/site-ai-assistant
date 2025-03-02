@@ -3,6 +3,7 @@ import io
 import pytest
 from docx import Document as DocxDocument
 
+from app.infra.crawler import is_public_address
 from app.infra.parsers import UnsupportedFileError, parse_file, parse_html
 from tests.factories import minimal_pdf
 
@@ -55,3 +56,21 @@ def test_parse_txt_falls_back_to_cp1251() -> None:
 def test_unsupported_extension_is_rejected() -> None:
     with pytest.raises(UnsupportedFileError):
         parse_file("archive.zip", b"PK")
+
+
+@pytest.mark.parametrize(
+    ("address", "public"),
+    [
+        ("8.8.8.8", True),
+        ("127.0.0.1", False),
+        ("10.1.2.3", False),
+        ("169.254.169.254", False),
+        ("100.64.0.1", False),
+        ("::1", False),
+        ("::ffff:127.0.0.1", False),
+        ("0.0.0.0", False),
+        ("224.0.0.1", False),
+    ],
+)
+def test_only_global_addresses_are_crawlable(address: str, public: bool) -> None:
+    assert is_public_address(address) is public

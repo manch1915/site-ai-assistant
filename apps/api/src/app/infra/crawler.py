@@ -1,10 +1,12 @@
-import asyncio
 import ipaddress
 import socket
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
+from typing import Any
 from urllib.parse import urljoin, urlparse
 from xml.etree.ElementTree import ParseError
 
+import anyio
+import httpcore
 import httpx
 from defusedxml import ElementTree
 
@@ -18,21 +20,53 @@ class CrawlError(Exception):
     pass
 
 
-def _is_public_host(host: str) -> bool:
-    try:
-        infos = socket.getaddrinfo(host, None)
-    except socket.gaierror:
-        return False
-    for info in infos:
-        address = ipaddress.ip_address(info[4][0])
-        if (
-            address.is_private
-            or address.is_loopback
-            or address.is_link_local
-            or address.is_reserved
-        ):
-            return False
-    return True
+def is_public_address(raw: str) -> bool:
+    address = ipaddress.ip_address(raw)
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+        address = address.ipv4_mapped
+    return address.is_global and not address.is_multicast and not address.is_unspecified
+
+
+class _PublicOnlyBackend(httpcore.AsyncNetworkBackend):
+    """Resolves the host itself and connects to the checked IP.
+
+    Checking the name before the request isn't enough: DNS can answer differently a moment
+    later (rebinding). TLS still uses the original hostname for SNI and certificates.
+    """
+
+    def __init__(self) -> None:
+        self._inner = httpcore.AnyIOBackend()
+
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,  # noqa: ASYNC109 (httpcore interface)
+        local_address: str | None = None,
+        socket_options: Iterable[Any] | None = None,
+    ) -> httpcore.AsyncNetworkStream:
+        try:
+            infos = await anyio.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        except OSError as exc:
+            raise httpcore.ConnectError(f"Cannot resolve {host}") from exc
+        addresses = [str(info[4][0]) for info in infos]
+        if not addresses or not all(is_public_address(a) for a in addresses):
+            raise httpcore.ConnectError(f"Refusing to fetch a private address: {host}")
+        return await self._inner.connect_tcp(
+            addresses[0], port, timeout, local_address, socket_options
+        )
+
+    async def sleep(self, seconds: float) -> None:
+        await self._inner.sleep(seconds)
+
+
+def _guarded_transport() -> httpx.AsyncHTTPTransport:
+    transport = httpx.AsyncHTTPTransport()
+    # httpx has no public hook for the network backend, so swap the pool it built.
+    transport._pool = httpcore.AsyncConnectionPool(
+        network_backend=_PublicOnlyBackend(), http1=True, http2=False
+    )
+    return transport
 
 
 class Crawler:
@@ -41,18 +75,10 @@ class Crawler:
         self.allow_private = allow_private
         self.timeout = timeout
 
-    async def _check_url(self, url: str) -> None:
-        parsed = urlparse(url)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise CrawlError(f"Not an http(s) URL: {url}")
-        if not self.allow_private:
-            public = await asyncio.to_thread(_is_public_host, parsed.hostname)
-            if not public:
-                raise CrawlError(f"Refusing to fetch a private address: {parsed.hostname}")
-
     async def _on_request(self, request: httpx.Request) -> None:
-        # Runs for redirects too, so a public page can't bounce us into the internal network.
-        await self._check_url(str(request.url))
+        # Runs for redirects too.
+        if request.url.scheme not in {"http", "https"} or not request.url.host:
+            raise CrawlError(f"Not an http(s) URL: {request.url}")
 
     async def _get(self, client: httpx.AsyncClient, url: str) -> httpx.Response:
         response = await client.get(url)
@@ -117,4 +143,5 @@ class Crawler:
             headers={"User-Agent": _USER_AGENT},
             max_redirects=5,
             event_hooks={"request": [self._on_request]},
+            transport=None if self.allow_private else _guarded_transport(),
         )
