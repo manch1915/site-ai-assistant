@@ -70,6 +70,12 @@ def source_cards(hits: list[Hit]) -> tuple[list[dict[str, Any]], dict[int, int]]
     return cards, mapping
 
 
+def estimate_usage(messages: list[ChatMessage], output: str) -> Usage:
+    # About three characters per token: a bit more than real, so the budget errs safe.
+    prompt_chars = sum(len(m.content) for m in messages)
+    return Usage(tokens_in=prompt_chars // 3 + 1, tokens_out=len(output) // 3 + 1)
+
+
 class ChatService:
     def __init__(
         self,
@@ -139,7 +145,9 @@ class ChatService:
                 yield ChatEvent("token", {"text": answer.text})
 
         if answer is None or answer.mode == "no_answer":
+            spent = answer.usage if answer else None
             answer = await self._no_answer(site, conversation, guard.text, found)
+            answer.usage = spent
             yield ChatEvent("token", {"text": answer.text})
 
         bot = Message(
@@ -199,6 +207,7 @@ class ChatService:
         parts: list[str] = []
         pending = ""
         streaming = False
+        silenced = False
         usage: Usage | None = None
         try:
             async for delta in self.llm.stream(messages):
@@ -207,6 +216,9 @@ class ChatService:
                 if not delta.text:
                     continue
                 parts.append(delta.text)
+                # After NO_ANSWER keep reading quietly: the usage chunk comes last.
+                if silenced:
+                    continue
                 if streaming:
                     yield ChatEvent("token", {"text": delta.text})
                     continue
@@ -215,16 +227,20 @@ class ChatService:
                 if not pending.strip() or could_become_no_answer(pending):
                     continue
                 if looks_like_no_answer(pending):
-                    break
+                    silenced = True
+                    continue
                 streaming = True
                 yield ChatEvent("token", {"text": pending})
         except Exception:
             log.exception("LLM call failed")
             if not streaming:
-                yield _Answer(text="", mode="no_answer", sources=[], usage=usage)
+                spent = usage or estimate_usage(messages, "".join(parts))
+                yield _Answer(text="", mode="no_answer", sources=[], usage=spent)
                 return
 
         raw = "".join(parts).strip()
+        # Providers that omit usage in streams still have to count against the budget.
+        usage = usage or estimate_usage(messages, raw)
         if not streaming or looks_like_no_answer(raw):
             yield _Answer(text="", mode="no_answer", sources=[], usage=usage)
             return

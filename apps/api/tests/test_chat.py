@@ -220,3 +220,27 @@ async def test_empty_message_is_rejected(session: AsyncSession) -> None:
     site, conversation = await setup(session)
     with pytest.raises(EmptyMessageError):
         await collect(chat(session).handle(site, conversation, "   \u200b "))
+
+
+async def test_no_answer_still_counts_tokens(session: AsyncSession) -> None:
+    site, conversation = await setup(session)
+
+    await collect(
+        chat(session, ScriptedModel("NO_ANSWER", " because")).handle(
+            site, conversation, "iPhone screen warranty price"
+        )
+    )
+
+    usage = await session.scalar(select(UsageDaily))
+    assert usage is not None and usage.tokens_in == 120
+
+
+async def test_failed_call_is_estimated_against_budget(session: AsyncSession) -> None:
+    site, conversation = await setup(session)
+
+    await collect(
+        chat(session, ScriptedModel(fail=True)).handle(site, conversation, "battery warranty")
+    )
+
+    usage = await session.scalar(select(UsageDaily))
+    assert usage is not None and usage.tokens_in > 0
