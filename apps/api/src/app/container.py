@@ -8,7 +8,9 @@ from app.config import Settings, get_settings
 from app.infra.crawler import Crawler
 from app.infra.db.session import Database, get_database
 from app.infra.embeddings import Embedder, build_embedder
+from app.infra.llm import ChatModel, build_chat_model
 from app.infra.storage import FileStorage
+from app.services.notifications import ManagerNotifier, QueueNotifier
 
 
 @dataclass
@@ -40,6 +42,14 @@ class Container:
     @cached_property
     def storage(self) -> FileStorage:
         return FileStorage(self.settings.upload_dir)
+
+    @cached_property
+    def llm(self) -> ChatModel | None:
+        return build_chat_model(self.settings)
+
+    @cached_property
+    def notifier(self) -> ManagerNotifier:
+        return QueueNotifier(self.queue)
 
 
 @lru_cache
