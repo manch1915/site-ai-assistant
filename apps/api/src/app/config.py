@@ -10,8 +10,8 @@ class Settings(BaseSettings):
 
     env: Literal["dev", "test", "prod"] = "dev"
     secret_key: str = "change-me"
-    database_url: str = "postgresql+asyncpg://relay:relay@localhost:5441/relay"
-    redis_url: str = "redis://localhost:6391/0"
+    database_url: str = "postgresql+asyncpg://relay:relay@127.0.0.1:5441/relay"
+    redis_url: str = "redis://127.0.0.1:6391/0"
 
     public_api_url: str = "http://localhost:8010"
     admin_origin: str = "http://localhost:3010"

@@ -4,9 +4,9 @@ os.environ.update(
     {
         "ENV": "test",
         "DATABASE_URL": os.environ.get(
-            "TEST_DATABASE_URL", "postgresql+asyncpg://relay:relay@localhost:5441/relay_test"
+            "TEST_DATABASE_URL", "postgresql+asyncpg://relay:relay@127.0.0.1:5441/relay_test"
         ),
-        "REDIS_URL": os.environ.get("TEST_REDIS_URL", "redis://localhost:6391/15"),
+        "REDIS_URL": os.environ.get("TEST_REDIS_URL", "redis://127.0.0.1:6391/15"),
         "EMBEDDINGS_PROVIDER": "hash",
         "LLM_API_KEY": "",
         "TELEGRAM_BOT_TOKEN": "",
