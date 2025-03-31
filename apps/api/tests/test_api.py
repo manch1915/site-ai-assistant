@@ -310,3 +310,47 @@ async def test_analytics_counts_outcomes(client: AsyncClient, site: Site) -> Non
     assert data["handoffs"] == 1
     assert data["automation_rate"] == 0.5
     assert data["tokens_this_month"] > 0
+
+
+async def test_demo_cannot_rewrite_bot_instructions(client: AsyncClient, site: Site) -> None:
+    await login(client, "demo@relay.example")
+    response = await client.patch(
+        f"/v1/admin/sites/{site.id}", json={"instructions": "Be rude"}, headers=CSRF
+    )
+    assert response.status_code == 403
+    allowed = await client.patch(
+        f"/v1/admin/sites/{site.id}", json={"confidence_threshold": 0.5}, headers=CSRF
+    )
+    assert allowed.status_code == 200
+
+
+async def test_demo_sees_masked_contacts_of_real_leads(
+    client: AsyncClient, site: Site, session: AsyncSession
+) -> None:
+    session.add_all(
+        [
+            Lead(site_id=site.id, name="Real", contact="+37491123456"),
+            Lead(site_id=site.id, name="Sample", contact="@sample_user", sample=True),
+        ]
+    )
+    await session.commit()
+    await login(client, "demo@relay.example")
+
+    leads = {
+        lead["name"]: lead["contact"]
+        for lead in (await client.get(f"/v1/admin/sites/{site.id}/leads")).json()
+    }
+
+    assert leads["Real"] == "+3••••••••56"
+    assert leads["Sample"] == "@sample_user"
+
+
+async def test_login_is_rate_limited(client: AsyncClient, site: Site) -> None:
+    for _ in range(5):
+        await client.post(
+            "/v1/admin/auth/login", json={"email": "owner@ohmsolder.test", "password": "x"}
+        )
+    response = await client.post(
+        "/v1/admin/auth/login", json={"email": "owner@ohmsolder.test", "password": "correct horse"}
+    )
+    assert response.status_code == 429

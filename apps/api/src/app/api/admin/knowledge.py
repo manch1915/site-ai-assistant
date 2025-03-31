@@ -123,8 +123,10 @@ async def create_site(body: SiteCreate, user: UserDep, session: SessionDep) -> S
 async def update_site(
     body: SiteUpdate, site: SiteDep, user: UserDep, session: SessionDep
 ) -> SiteOut:
-    if body.monthly_token_budget is not None and user.is_demo:
-        forbid_in_demo(user, "Changing the token budget")
+    # Anyone can open the demo, so it can't change what the public bot says or where it runs.
+    locked = {"allowed_domains", "instructions", "monthly_token_budget"}
+    if user.is_demo and locked & body.model_fields_set:
+        forbid_in_demo(user, "Changing domains, bot instructions or budget")
     changes = body.model_dump(exclude_unset=True, exclude={"widget"})
     for field, value in changes.items():
         setattr(site, field, value)

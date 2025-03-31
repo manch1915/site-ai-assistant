@@ -9,7 +9,15 @@ from sqlalchemy import func, or_, select
 from app.api.admin.deps import SiteDep, UserDep
 from app.api.deps import ContainerDep, HandoffServiceDep, IndexingServiceDep, SessionDep
 from app.domain.enums import ConversationStatus, GapStatus, LeadStatus, MessageRole
-from app.infra.db.models import Conversation, FaqItem, KnowledgeGap, Lead, Message, Site
+from app.infra.db.models import (
+    Conversation,
+    FaqItem,
+    KnowledgeGap,
+    Lead,
+    Message,
+    Site,
+    User,
+)
 from app.services.analytics import AnalyticsService
 from app.services.usage import UsageService
 
@@ -121,6 +129,20 @@ class OverviewOut(BaseModel):
     tokens_this_month: int
     token_budget: int
     llm_enabled: bool
+
+
+def mask_contact(contact: str) -> str:
+    if len(contact) <= 4:
+        return "•" * len(contact)
+    return contact[:2] + "•" * (len(contact) - 4) + contact[-2:]
+
+
+def lead_out(lead: Lead, user: User) -> LeadOut:
+    out = LeadOut.model_validate(lead)
+    # Everyone shares the demo login, so real visitors' contacts stay hidden there.
+    if user.is_demo and not lead.sample:
+        out.contact = mask_contact(lead.contact)
+    return out
 
 
 async def owned_conversation(
@@ -243,23 +265,23 @@ async def close_conversation(
 
 
 @router.get("/leads")
-async def list_leads(site: SiteDep, session: SessionDep) -> list[LeadOut]:
+async def list_leads(site: SiteDep, user: UserDep, session: SessionDep) -> list[LeadOut]:
     rows = await session.scalars(
         select(Lead).where(Lead.site_id == site.id).order_by(Lead.created_at.desc()).limit(200)
     )
-    return [LeadOut.model_validate(lead) for lead in rows]
+    return [lead_out(lead, user) for lead in rows]
 
 
 @router.patch("/leads/{lead_id}")
 async def update_lead(
-    lead_id: uuid.UUID, body: LeadUpdate, site: SiteDep, session: SessionDep
+    lead_id: uuid.UUID, body: LeadUpdate, site: SiteDep, user: UserDep, session: SessionDep
 ) -> LeadOut:
     lead = await session.get(Lead, lead_id)
     if lead is None or lead.site_id != site.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Lead not found")
     lead.status = body.status
     await session.commit()
-    return LeadOut.model_validate(lead)
+    return lead_out(lead, user)
 
 
 @router.get("/gaps")

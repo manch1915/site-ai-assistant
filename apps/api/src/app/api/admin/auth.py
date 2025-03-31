@@ -1,12 +1,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.admin.deps import SESSION_COOKIE, AuthServiceDep, UserDep
-from app.api.deps import ContainerDep, SessionDep
+from app.api.deps import ContainerDep, RateLimiterDep, SessionDep
 from app.infra.db.models import Site, User, Workspace
 from app.services.auth import InvalidCredentialsError
 
@@ -67,7 +67,16 @@ async def login(
     auth: AuthServiceDep,
     session: SessionDep,
     container: ContainerDep,
+    limiter: RateLimiterDep,
+    request: Request,
 ) -> MeOut:
+    ip = request.client.host if request.client else "unknown"
+    email = body.email.strip().lower()
+    if not (
+        await limiter.allow(f"login-ip:{ip}", limit=10)
+        and await limiter.allow(f"login-email:{email}", limit=5)
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many attempts, wait a minute")
     try:
         user, token = await auth.login(body.email, body.password)
     except InvalidCredentialsError:

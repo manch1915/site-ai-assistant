@@ -248,6 +248,8 @@ class Lead(Base):
     status: Mapped[LeadStatus] = mapped_column(
         _enum(LeadStatus, "lead_status"), default=LeadStatus.NEW
     )
+    # Seeded demo leads. Contacts of real ones are masked for the shared demo account.
+    sample: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
 
 
