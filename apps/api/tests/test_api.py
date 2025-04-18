@@ -345,7 +345,9 @@ async def test_demo_sees_masked_contacts_of_real_leads(
     assert leads["Sample"] == "@sample_user"
 
 
-async def test_login_is_rate_limited(client: AsyncClient, site: Site) -> None:
+async def test_failed_logins_are_rate_limited(client: AsyncClient, site: Site) -> None:
+    for _ in range(3):
+        await login(client)
     for _ in range(5):
         await client.post(
             "/v1/admin/auth/login", json={"email": "owner@ohmsolder.test", "password": "x"}
@@ -354,3 +356,9 @@ async def test_login_is_rate_limited(client: AsyncClient, site: Site) -> None:
         "/v1/admin/auth/login", json={"email": "owner@ohmsolder.test", "password": "correct horse"}
     )
     assert response.status_code == 429
+
+
+async def test_demo_gets_no_telegram_link(client: AsyncClient, site: Site) -> None:
+    await login(client, "demo@relay.example")
+    data = (await client.get(f"/v1/admin/sites/{site.id}/telegram")).json()
+    assert data["connect_link"] is None

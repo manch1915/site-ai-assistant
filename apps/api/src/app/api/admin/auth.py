@@ -72,14 +72,15 @@ async def login(
 ) -> MeOut:
     ip = request.client.host if request.client else "unknown"
     email = body.email.strip().lower()
-    if not (
-        await limiter.allow(f"login-ip:{ip}", limit=10)
-        and await limiter.allow(f"login-email:{email}", limit=5)
-    ):
+    # Successful logins don't count towards the per-email limit, so a stranger guessing
+    # passwords can't lock the owner out for longer than a minute.
+    too_many = not await limiter.allow(f"login-ip:{ip}", limit=20)
+    if too_many or await limiter.count(f"login-fail:{email}") >= 5:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many attempts, wait a minute")
     try:
         user, token = await auth.login(body.email, body.password)
     except InvalidCredentialsError:
+        await limiter.allow(f"login-fail:{email}", limit=5)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password") from None
     settings = container.settings
     set_session_cookie(response, token, settings.env == "prod", settings.session_ttl_hours * 3600)

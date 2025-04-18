@@ -21,6 +21,11 @@ class RateLimiter:
             count, _ = await pipe.execute()
         return int(count) <= limit
 
+    async def count(self, key: str, window_seconds: int = 60) -> int:
+        bucket = int(time.time() // window_seconds)
+        value = await self.redis.get(f"rl:{key}:{bucket}")
+        return int(value or 0)
+
 
 class EventBus:
     """Pushes manager replies and status changes to open widget connections."""

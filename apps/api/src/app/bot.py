@@ -63,10 +63,16 @@ async def manager_reply(message: Message, container: Container, sender: AiogramS
 
 
 @router.callback_query(CloseChat.filter())
-async def close_chat(query: CallbackQuery, callback_data: CloseChat, container: Container) -> None:
+async def close_chat(
+    query: CallbackQuery, callback_data: CloseChat, container: Container, sender: AiogramSender
+) -> None:
+    chat_id = query.message.chat.id if query.message else None
     async with container.database.session() as session:
+        owns = chat_id is not None and await ManagerChat(session, sender).chat_owns_conversation(
+            chat_id, callback_data.conversation_id
+        )
         conversation = await session.get(Conversation, callback_data.conversation_id)
-        if conversation is not None:
+        if conversation is not None and owns:
             handoff = HandoffService(session, container.notifier, EventBus(container.redis))
             await handoff.close(conversation)
     await query.answer("Chat closed. The bot answers this visitor again.")

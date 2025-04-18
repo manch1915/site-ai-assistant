@@ -1,6 +1,7 @@
 """Mirror of conversations in the managers' Telegram chat."""
 
 import html
+import secrets
 import uuid
 from typing import Protocol
 
@@ -153,5 +154,16 @@ class ManagerChat:
             return None
         site.telegram_chat_id = chat_id
         site.telegram_chat_title = title[:255]
+        # One link, one chat: a leaked link can't silently move the inbox somewhere else.
+        site.telegram_link_token = secrets.token_urlsafe(12)
         await self.session.commit()
         return site
+
+    async def chat_owns_conversation(self, chat_id: int, conversation_id: uuid.UUID) -> bool:
+        thread = await self.session.scalar(
+            select(TelegramThread.id).where(
+                TelegramThread.chat_id == chat_id,
+                TelegramThread.conversation_id == conversation_id,
+            )
+        )
+        return thread is not None

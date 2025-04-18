@@ -104,3 +104,24 @@ async def test_link_chat_by_token(session: AsyncSession) -> None:
 
     assert linked is not None and linked.telegram_chat_id == CHAT_ID
     assert await chat.link_chat("wrong", CHAT_ID, "x") is None
+
+
+async def test_link_token_works_once(session: AsyncSession) -> None:
+    site = await make_site(session)
+    await session.commit()
+    token = site.telegram_link_token
+    chat = ManagerChat(session, FakeSender())
+
+    await chat.link_chat(token, CHAT_ID, "Managers")
+
+    assert await chat.link_chat(token, -42, "Someone else") is None
+    assert site.telegram_chat_id == CHAT_ID
+
+
+async def test_only_the_linked_chat_owns_a_conversation(session: AsyncSession) -> None:
+    conversation = await conversation_with_history(session)
+    chat = ManagerChat(session, FakeSender())
+    await chat.announce_handoff(conversation.id)
+
+    assert await chat.chat_owns_conversation(CHAT_ID, conversation.id)
+    assert not await chat.chat_owns_conversation(-42, conversation.id)
