@@ -21,10 +21,10 @@ class RateLimiter:
             count, _ = await pipe.execute()
         return int(count) <= limit
 
-    async def count(self, key: str, window_seconds: int = 60) -> int:
+    async def release(self, key: str, window_seconds: int = 60) -> None:
+        """Gives back an attempt taken with `allow`, e.g. after a successful login."""
         bucket = int(time.time() // window_seconds)
-        value = await self.redis.get(f"rl:{key}:{bucket}")
-        return int(value or 0)
+        await self.redis.decr(f"rl:{key}:{bucket}")
 
 
 class EventBus:
