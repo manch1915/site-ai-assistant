@@ -1,9 +1,15 @@
 import json
 import time
-from collections.abc import AsyncIterator
-from typing import Any
+from collections.abc import AsyncIterator, Awaitable
+from typing import Any, cast
 
 from redis.asyncio import Redis
+
+_RELEASE = """
+local value = tonumber(redis.call("GET", KEYS[1]) or "0")
+if value > 0 then redis.call("DECR", KEYS[1]) end
+return value
+"""
 
 
 class RateLimiter:
@@ -12,19 +18,22 @@ class RateLimiter:
     def __init__(self, redis: Redis) -> None:
         self.redis = redis
 
-    async def allow(self, key: str, limit: int, window_seconds: int = 60) -> bool:
+    async def reserve(self, key: str, limit: int, window_seconds: int = 60) -> str | None:
+        """Takes one slot; returns the bucket key to release later, or None when over limit."""
         bucket = int(time.time() // window_seconds)
         redis_key = f"rl:{key}:{bucket}"
         async with self.redis.pipeline(transaction=True) as pipe:
             pipe.incr(redis_key)
             pipe.expire(redis_key, window_seconds * 2)
             count, _ = await pipe.execute()
-        return int(count) <= limit
+        return redis_key if int(count) <= limit else None
 
-    async def release(self, key: str, window_seconds: int = 60) -> None:
-        """Gives back an attempt taken with `allow`, e.g. after a successful login."""
-        bucket = int(time.time() // window_seconds)
-        await self.redis.decr(f"rl:{key}:{bucket}")
+    async def allow(self, key: str, limit: int, window_seconds: int = 60) -> bool:
+        return await self.reserve(key, limit, window_seconds) is not None
+
+    async def release(self, redis_key: str) -> None:
+        """Gives a reserved slot back, e.g. after a successful login. Never goes below zero."""
+        await cast(Awaitable[Any], self.redis.eval(_RELEASE, 1, redis_key))
 
 
 class EventBus:

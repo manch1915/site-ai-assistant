@@ -74,16 +74,16 @@ async def login(
     email = body.email.strip().lower()
     # Every attempt reserves a slot up front (atomic INCR), so parallel guesses can't slip
     # past the limit. A successful login gives its slot back: only failures count.
-    email_key = f"login-fail:{email}"
     if not await limiter.allow(f"login-ip:{ip}", limit=20):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many attempts, wait a minute")
-    if not await limiter.allow(email_key, limit=5):
+    slot = await limiter.reserve(f"login-fail:{email}", limit=5)
+    if slot is None:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many attempts, wait a minute")
     try:
         user, token = await auth.login(body.email, body.password)
     except InvalidCredentialsError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password") from None
-    await limiter.release(email_key)
+    await limiter.release(slot)
     settings = container.settings
     set_session_cookie(response, token, settings.env == "prod", settings.session_ttl_hours * 3600)
     return await me_payload(user, session)
