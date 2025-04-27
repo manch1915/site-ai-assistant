@@ -56,7 +56,7 @@ class RetrievalService:
         hits = fuse(vector_hits, lexical_hits, TOP_K)
         return Retrieval(
             hits=hits,
-            confidence=confidence(hits, self.floor, self.ceiling),
+            confidence=confidence(hits, self.floor, self.ceiling, query),
             query_embedding=embedding,
         )
 

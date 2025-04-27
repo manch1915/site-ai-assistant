@@ -10,7 +10,15 @@ from app.domain.prompting import (
     quote_excerpt,
     renumber_citations,
 )
-from app.domain.retrieval import Hit, build_tsquery, calibrate, confidence, fuse
+from app.domain.retrieval import (
+    Hit,
+    build_tsquery,
+    calibrate,
+    confidence,
+    coverage_factor,
+    fuse,
+    term_coverage,
+)
 
 
 def hit(chunk_id: int, similarity: float | None = None, doc: str = "d") -> Hit:
@@ -48,7 +56,7 @@ def test_guard_passes_normal_questions_and_trims() -> None:
 def test_tsquery_drops_stopwords_and_stems() -> None:
     assert (
         build_tsquery("Сколько стоит замена экрана на iPhone?")
-        == "стои:* | заме:* | экра:* | ipho:*"
+        == "стоит:* | заме:* | экра:* | ipho:*"
     )
     assert build_tsquery("how are you") is None
 
@@ -61,15 +69,24 @@ def test_fuse_rewards_documents_found_by_both_searches() -> None:
     assert fused[0].sources == {"vector", "lexical"}
 
 
-def test_confidence_scales_and_rewards_agreement() -> None:
+def test_confidence_scales_similarity() -> None:
     assert calibrate(0.81, 0.74, 0.88) == pytest.approx(0.5)
-    only_vector = [hit(1, 0.81)]
-    only_vector[0].sources = {"vector"}
-    both = [hit(1, 0.81)]
-    both[0].sources = {"vector", "lexical"}
-    assert confidence(only_vector, 0.74, 0.88) == pytest.approx(0.5)
-    assert confidence(both, 0.74, 0.88) == pytest.approx(0.6)
+    assert confidence([hit(1, 0.81)], 0.74, 0.88) == pytest.approx(0.5)
     assert confidence([], 0.74, 0.88) == 0
+
+
+def test_missing_key_words_lower_confidence() -> None:
+    passage = Hit(1, "d", "Prices", None, "Screen replacement for any phone costs 99 EUR.", 0.85)
+    on_topic = confidence([passage], 0.74, 0.88, "phone screen replacement price")
+    off_topic = confidence([passage], 0.74, 0.88, "can you fix my washing machine")
+    assert on_topic > 0.7
+    assert off_topic < 0.3
+
+
+def test_coverage_is_ignored_across_languages() -> None:
+    passage = Hit(1, "d", "Hours", None, "We are open Monday to Saturday.", 0.85)
+    assert term_coverage("Вы работаете в субботу?", [passage]) is None
+    assert coverage_factor(None) == 1.0
 
 
 def test_citations_are_renumbered_per_document() -> None:

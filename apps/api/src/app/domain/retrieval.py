@@ -1,6 +1,8 @@
 import re
 from dataclasses import dataclass, field
 
+from app.domain.language import detect_language
+
 RRF_K = 60
 
 _WORD = re.compile(r"[\w]+", re.UNICODE)
@@ -33,17 +35,39 @@ class Hit:
     sources: set[str] = field(default_factory=set)
 
 
-def build_tsquery(text: str) -> str | None:
-    """OR-query with crude prefix stemming, so "экрана" still matches "экран"."""
+def key_terms(text: str) -> list[str]:
+    """Content words cut to a crude stem, so "экрана" still matches "экран"."""
     terms: list[str] = []
     for word in _WORD.findall(text.lower()):
         if len(word) < 3 or word in _STOPWORDS:
             continue
-        stem = word if len(word) <= 4 else word[: max(4, len(word) - 2)]
-        term = f"{stem}:*"
-        if term not in terms:
-            terms.append(term)
-    return " | ".join(terms[:12]) or None
+        stem = word if len(word) <= 5 else word[: max(4, len(word) - 2)]
+        if stem not in terms:
+            terms.append(stem)
+    return terms[:12]
+
+
+def build_tsquery(text: str) -> str | None:
+    """OR-query over key terms with prefix matching."""
+    return " | ".join(f"{term}:*" for term in key_terms(text)) or None
+
+
+def term_coverage(query: str, hits: list[Hit]) -> float | None:
+    """Share of the question's key terms found in the top passages.
+
+    Embeddings rate "can you fix my washing machine" close to any repair page; the words
+    "washing" and "machine" appearing nowhere is what gives it away. Returns None when the
+    question and passages are in different languages, where word overlap means nothing.
+    """
+    terms = key_terms(query)
+    top = hits[:3]
+    if not terms or not top:
+        return None
+    if detect_language(query) != detect_language(" ".join(h.text for h in top)):
+        return None
+    words = set(_WORD.findall(" ".join(h.text for h in top).lower()))
+    found = sum(1 for term in terms if any(word.startswith(term) for word in words))
+    return found / len(terms)
 
 
 def fuse(vector_hits: list[Hit], lexical_hits: list[Hit], limit: int) -> list[Hit]:
@@ -70,12 +94,23 @@ def calibrate(similarity: float, floor: float, ceiling: float) -> float:
     return min(max((similarity - floor) / (ceiling - floor), 0.0), 1.0)
 
 
-def confidence(hits: list[Hit], floor: float, ceiling: float) -> float:
-    """Best semantic match, nudged up when keyword search agrees on a top result."""
+def coverage_factor(coverage: float | None) -> float:
+    """1.0 when at least two thirds of the key words are found, 0.3 at one third or less.
+
+    Calibrated on the demo questions: off-topic questions about repairs ("washing machine",
+    "DJI drone") share exactly one generic word with the pages, real questions share more.
+    """
+    if coverage is None:
+        return 1.0
+    return 0.3 + 0.7 * min(max((coverage - 1 / 3) * 3, 0.0), 1.0)
+
+
+def confidence(hits: list[Hit], floor: float, ceiling: float, query: str = "") -> float:
+    """Best semantic match, scaled down when the passages miss the question's key words."""
     similarities = [h.similarity for h in hits if h.similarity is not None]
     if not similarities:
         return 0.0
     score = calibrate(max(similarities), floor, ceiling)
-    if any(len(h.sources) == 2 for h in hits[:3]):
-        score += 0.1
-    return round(min(score, 1.0), 3)
+    if query:
+        score *= coverage_factor(term_coverage(query, hits))
+    return round(score, 3)
