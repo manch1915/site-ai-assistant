@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     demo_password: str = Field(default="demo-relay-2026")
     session_ttl_hours: int = 72
 
+    # Owner account with the narcisbin.com assistant; skipped when empty.
+    owner_email: str = ""
+    owner_password: str = ""
+    owner_site_key: str = ""
+    demo_reset_cron: str = "0 */6 * * *"
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.llm_api_key)

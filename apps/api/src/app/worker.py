@@ -2,10 +2,12 @@ import logging
 import uuid
 from collections.abc import Awaitable, Callable
 from functools import cache
-from typing import Any
 
 from aiogram import Bot
+from saq import CronJob
+from saq.types import Context as SaqContext
 
+from app.cli import run_seed
 from app.container import get_container
 from app.infra.telegram import AiogramSender, build_bot
 from app.services.indexing import IndexingService
@@ -14,7 +16,7 @@ from app.services.manager_chat import ManagerChat
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger(__name__)
 
-Context = dict[str, Any]
+Context = SaqContext
 
 
 @cache
@@ -52,8 +54,14 @@ async def notify_lead(_: Context, *, lead_id: str) -> None:
     await _with_manager_chat(lambda chat: chat.announce_lead(uuid.UUID(lead_id)))
 
 
+async def reset_demo(_: Context) -> None:
+    # Anyone can edit the public demo, so it goes back to a clean state a few times a day.
+    await run_seed(get_container(), "reset-demo", if_empty=False)
+
+
 settings = {
     "queue": get_container().queue,
     "functions": [index_source, notify_handoff, forward_visitor_message, notify_lead],
+    "cron_jobs": [CronJob(reset_demo, cron=get_container().settings.demo_reset_cron)],
     "concurrency": 4,
 }
