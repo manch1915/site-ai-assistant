@@ -19,6 +19,8 @@ def create_app(container: Container | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.container = container or get_container()
+        # Loading the embedding model takes seconds; pay it at startup, not on the first visitor.
+        await app.state.container.embedder.embed_query("warm up")
         yield
         await app.state.container.redis.aclose()
         await dispose_database()
@@ -33,7 +35,14 @@ def create_app(container: Container | None = None) -> FastAPI:
 
         Whether that origin may actually use a given site key is checked per request.
         """
-        if not request.url.path.startswith("/v1/widget"):
+        path = request.url.path
+        if path in {"/widget.js", "/widget-app.js"}:
+            # The loader imports the chat module cross-origin, which needs CORS.
+            asset = await call_next(request)
+            asset.headers["Access-Control-Allow-Origin"] = "*"
+            asset.headers["Cache-Control"] = "public, max-age=300"
+            return asset
+        if not path.startswith("/v1/widget"):
             return await call_next(request)
         origin = request.headers.get("origin")
         if request.method == "OPTIONS":

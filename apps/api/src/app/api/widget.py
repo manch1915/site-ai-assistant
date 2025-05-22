@@ -38,7 +38,12 @@ def client_ip(request: Request) -> str:
 
 
 def check_origin(request: Request, site: Site, container: ContainerDep) -> None:
-    always = [container.settings.admin_origin, container.settings.public_api_url]
+    # Pages served by the API itself (the demo shop) are always allowed.
+    always = [
+        container.settings.admin_origin,
+        container.settings.public_api_url,
+        str(request.base_url),
+    ]
     if not origin_allowed(request.headers.get("origin"), site.allowed_domains, always):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "This site is not allowed to use the widget")
 
