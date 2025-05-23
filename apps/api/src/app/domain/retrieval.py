@@ -39,7 +39,8 @@ def key_terms(text: str) -> list[str]:
     """Content words cut to a crude stem, so "экрана" still matches "экран"."""
     terms: list[str] = []
     for word in _WORD.findall(text.lower()):
-        if len(word) < 3 or word in _STOPWORDS:
+        # Model numbers ("15", "S24") matter even when short.
+        if (len(word) < 3 and not word.isdigit()) or word in _STOPWORDS:
             continue
         stem = word if len(word) <= 5 else word[: max(4, len(word) - 2)]
         if stem not in terms:

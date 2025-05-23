@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.enums import ConversationStatus, MessageRole
+from app.domain.excerpt import best_lines
 from app.domain.guard import inspect_message
 from app.domain.language import detect_language
 from app.domain.prompting import (
@@ -141,7 +142,7 @@ class ChatService:
                     else:
                         answer = item
             else:
-                answer = self._quote(site, conversation.language, found.hits)
+                answer = self._quote(site, conversation.language, guard.text, found.hits)
                 yield ChatEvent("token", {"text": answer.text})
 
         if answer is None or answer.mode == "no_answer":
@@ -256,15 +257,13 @@ class ChatService:
             usage=usage,
         )
 
-    def _quote(self, site: Site, language: str, hits: list[Hit]) -> _Answer:
+    def _quote(self, site: Site, language: str, question: str, hits: list[Hit]) -> _Answer:
         best = hits[0]
         intro = reply("quote_intro", language, site=site.name)
+        lines = best_lines(best.text, question) or [quote_excerpt(best.text)]
+        quoted = "\n".join(f"> {quote_excerpt(line, 240)}" for line in lines)
         cards, _ = source_cards([best])
-        return _Answer(
-            text=f"{intro}\n\n> {quote_excerpt(best.text)} [1]",
-            mode="quote",
-            sources=cards,
-        )
+        return _Answer(text=f"{intro}\n\n{quoted} [1]", mode="quote", sources=cards)
 
     async def _no_answer(
         self, site: Site, conversation: Conversation, question: str, found: Retrieval
