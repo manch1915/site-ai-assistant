@@ -135,6 +135,7 @@ class Seeder:
                     "If I don't know, I'll pass you to Inês at the counter."
                 ),
                 accent="#0F5C4A",
+                theme="light",
                 quick_questions=[
                     "How much is an iPhone 15 screen?",
                     "Do I need an appointment?",

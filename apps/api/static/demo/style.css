@@ -282,8 +282,8 @@ main > section + section {
 
 .tag .stamp {
   position: absolute;
-  right: -14px;
-  bottom: 74px;
+  right: -18px;
+  bottom: 96px;
   background: var(--signal);
   color: var(--ink);
   font: 700 0.95rem/1 var(--display);

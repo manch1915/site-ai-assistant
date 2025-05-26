@@ -22,3 +22,7 @@ coverage/
 storage/
 *.log
 .DS_Store
+
+# Built widget, copied in by apps/widget
+apps/api/static/widget.js
+apps/api/static/widget-app.js
