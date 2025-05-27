@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.enums import ConversationStatus, MessageRole
-from app.domain.excerpt import best_lines
+from app.domain.excerpt import best_passage
 from app.domain.guard import inspect_message
 from app.domain.language import detect_language
 from app.domain.prompting import (
@@ -258,9 +258,10 @@ class ChatService:
         )
 
     def _quote(self, site: Site, language: str, question: str, hits: list[Hit]) -> _Answer:
-        best = hits[0]
+        index, lines = best_passage([hit.text for hit in hits[:3]], question)
+        best = hits[index]
         intro = reply("quote_intro", language, site=site.name)
-        lines = best_lines(best.text, question) or [quote_excerpt(best.text)]
+        lines = lines or [quote_excerpt(best.text)]
         quoted = "\n".join(f"> {quote_excerpt(line, 240)}" for line in lines)
         cards, _ = source_cards([best])
         return _Answer(text=f"{intro}\n\n{quoted} [1]", mode="quote", sources=cards)

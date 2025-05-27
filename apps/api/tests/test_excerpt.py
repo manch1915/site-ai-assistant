@@ -1,4 +1,4 @@
-from app.domain.excerpt import best_lines, readable_line
+from app.domain.excerpt import best_lines, best_passage, readable_line
 
 PRICES = """# Repair prices
 
@@ -20,11 +20,27 @@ def test_table_rows_read_like_text() -> None:
 
 
 def test_picks_the_row_that_answers() -> None:
-    assert best_lines(PRICES, "How much is an iPhone 15 screen?") == [
+    assert best_lines(PRICES, "How much is an iPhone 15 screen?")[1] == [
         "iPhone 15 screen replacement: about 1 hour, €189",
     ]
-    assert len(best_lines(PRICES, "screen replacement prices")) == 3
+    assert len(best_lines(PRICES, "screen replacement prices")[1]) == 3
+
+
+def test_short_heading_brings_the_lines_below() -> None:
+    text = "Opening hours\nMonday to Friday 10:00 to 19:00\nSaturday 11:00 to 17:00"
+    assert best_lines(text, "opening hours")[1] == [
+        "Opening hours",
+        "Monday to Friday 10:00 to 19:00",
+        "Saturday 11:00 to 17:00",
+    ]
+
+
+def test_picks_the_passage_that_actually_answers() -> None:
+    warranty = "Batteries get twelve months of warranty."
+    index, lines = best_passage([PRICES, warranty], "battery warranty")
+    assert index == 1
+    assert lines == [warranty]
 
 
 def test_falls_back_to_the_opening_lines() -> None:
-    assert best_lines(PRICES, "zzz")[0] == "Repair prices"
+    assert best_lines(PRICES, "zzz")[1][0] == "Repair prices"
