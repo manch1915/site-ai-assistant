@@ -63,12 +63,13 @@ export class WidgetApi {
     return this.json(`/conversations/${session.id}/messages`, { headers: this.headers(session) });
   }
 
-  async *ask(session: Session, text: string, signal?: AbortSignal): AsyncGenerator<AnswerEvent> {
+  async *ask(session: Session, text: string): AsyncGenerator<AnswerEvent> {
     const response = await fetch(this.url(`/conversations/${session.id}/messages`), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...this.headers(session) },
       body: JSON.stringify({ text }),
-      signal,
+      // A lost connection should end in an error message, not an endless typing indicator.
+      signal: AbortSignal.timeout(60_000),
     });
     if (!response.ok || !response.body) throw new ApiError(response.status);
     for await (const { event, data } of readSse(response.body)) {
