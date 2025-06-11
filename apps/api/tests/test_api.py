@@ -362,3 +362,15 @@ async def test_demo_gets_no_telegram_link(client: AsyncClient, site: Site) -> No
     await login(client, "demo@relay.example")
     data = (await client.get(f"/v1/admin/sites/{site.id}/telegram")).json()
     assert data["connect_link"] is None
+
+
+async def test_non_http_page_urls_are_dropped(
+    client: AsyncClient, site: Site, session: AsyncSession
+) -> None:
+    response = await client.post(
+        f"/v1/widget/{site.public_key}/conversations",
+        json={"page_url": "javascript:alert(1)"},
+        headers={"origin": ORIGIN},
+    )
+    conversation = await session.get(Conversation, response.json()["id"])
+    assert conversation is not None and conversation.page_url is None

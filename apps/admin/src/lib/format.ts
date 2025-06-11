@@ -43,3 +43,12 @@ export function hostOf(url: string | null): string {
     return url;
   }
 }
+
+export function pathOf(url: string | null): string {
+  if (!url) return "";
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return "";
+  }
+}

@@ -16,7 +16,7 @@ import {
   Textarea,
 } from "@/components/ui";
 import { api } from "@/lib/api";
-import { dateTime, hostOf, timeAgo } from "@/lib/format";
+import { dateTime, hostOf, pathOf, timeAgo } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import type { ConversationDetail, ConversationRow, ConversationStatus, Message } from "@/lib/types";
 
@@ -298,7 +298,7 @@ function ConversationView({ id, onBack }: { id: string; onBack: () => void }) {
               <span className="text-ink-3">
                 {" "}
                 on {hostOf(data.page_url)}
-                {new URL(data.page_url).pathname}
+                {pathOf(data.page_url)}
               </span>
             )}
           </p>

@@ -5,10 +5,11 @@ import uuid
 from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from typing import Annotated, Literal
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
 from app.api.deps import (
@@ -97,6 +98,14 @@ class WidgetConfigOut(BaseModel):
 class ConversationIn(BaseModel):
     page_url: str | None = Field(default=None, max_length=2048)
     language: str | None = Field(default=None, max_length=8)
+
+    @field_validator("page_url")
+    @classmethod
+    def http_only(cls, value: str | None) -> str | None:
+        # The admin shows this link to managers, so anything but http(s) is dropped.
+        if value and urlparse(value).scheme in {"http", "https"}:
+            return value
+        return None
 
 
 class ConversationOut(BaseModel):
