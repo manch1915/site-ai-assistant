@@ -130,6 +130,10 @@ button {
   transform-origin: bottom left;
 }
 
+.relay.inline {
+  height: 100%;
+}
+
 .inline .panel {
   position: relative;
   inset: auto;

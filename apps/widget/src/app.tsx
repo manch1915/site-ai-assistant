@@ -391,6 +391,8 @@ export function mount(options: MountOptions): Controls {
   const style = document.createElement("style");
   style.textContent = styles;
   const container = document.createElement("div");
+  // Inline previews fill whatever box the host gives them.
+  if (options.inline) container.style.height = "100%";
   options.root.append(style, container);
   let controls: Controls = { open: () => undefined, close: () => undefined };
   render(
