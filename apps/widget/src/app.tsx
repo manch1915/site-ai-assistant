@@ -231,7 +231,8 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
 
   useEffect(() => {
     if (!inline) setOpenFlag(siteKey, open);
-    if (open) inputRef.current?.focus({ preventScroll: true });
+    // The admin preview remounts on every keystroke in the form; it must not steal focus.
+    if (open && !inline) inputRef.current?.focus({ preventScroll: true });
   }, [open, inline, siteKey]);
 
   useEffect(() => {
