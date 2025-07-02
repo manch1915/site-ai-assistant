@@ -92,7 +92,8 @@ class Crawler:
         except ParseError as exc:
             raise CrawlError(f"{url} is not a valid sitemap") from exc
 
-        locs = [el.text.strip() for el in root.iter(f"{_NS}loc") if el.text]
+        # Real sitemaps use absolute URLs, but relative ones are easy to support.
+        locs = [urljoin(url, el.text.strip()) for el in root.iter(f"{_NS}loc") if el.text]
         if root.tag == f"{_NS}sitemapindex" and depth < 2:
             nested: list[str] = []
             for child in locs:
