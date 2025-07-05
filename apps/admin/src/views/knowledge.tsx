@@ -194,7 +194,8 @@ function Sources() {
                     )}
                   </div>
                   <span className="tabular text-[13px] text-ink-2">
-                    {source.documents_count} docs · {source.chunks_count} chunks
+                    {source.documents_count} {source.documents_count === 1 ? "doc" : "docs"} ·{" "}
+                    {source.chunks_count} {source.chunks_count === 1 ? "chunk" : "chunks"}
                   </span>
                   <Badge tone={STATUS_TONE[source.status]}>{source.status}</Badge>
                   {source.kind !== "faq" && (
