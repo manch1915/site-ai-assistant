@@ -1,11 +1,45 @@
 name: relay
 
+# One command for the whole stack: docker compose up --build
+# Then open http://localhost:8088/demo/ (demo shop) and http://localhost:8088/admin/ (admin).
+
+x-api-env: &api-env
+  ENV: ${ENV:-dev}
+  DATABASE_URL: postgresql+asyncpg://relay:${POSTGRES_PASSWORD:-relay}@db:5432/relay
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: ${SECRET_KEY:-dev-only-secret}
+  PUBLIC_API_URL: ${PUBLIC_URL:-http://localhost:8088}
+  ADMIN_ORIGIN: ${PUBLIC_URL:-http://localhost:8088}
+  LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_MODEL: ${LLM_MODEL:-openai/gpt-4.1-mini}
+  EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-local}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  DAILY_TOKEN_LIMIT: ${DAILY_TOKEN_LIMIT:-400000}
+  WIDGET_RATE_PER_MINUTE: ${WIDGET_RATE_PER_MINUTE:-12}
+  OWNER_EMAIL: ${OWNER_EMAIL:-}
+  OWNER_PASSWORD: ${OWNER_PASSWORD:-}
+  OWNER_SITE_KEY: ${OWNER_SITE_KEY:-}
+
+x-api-image: &api-image
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  image: relay-api
+  restart: unless-stopped
+  environment: *api-env
+  volumes:
+    - models:/models
+    - uploads:/srv/storage
+
 services:
   db:
     image: pgvector/pgvector:pg17
+    restart: unless-stopped
     environment:
       POSTGRES_USER: relay
-      POSTGRES_PASSWORD: relay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-relay}
       POSTGRES_DB: relay
     ports: ["127.0.0.1:5441:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
@@ -16,11 +50,55 @@ services:
 
   redis:
     image: redis:8-alpine
+    restart: unless-stopped
     ports: ["127.0.0.1:6391:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
       retries: 20
 
+  api:
+    <<: *api-image
+    command: sh -c "alembic upgrade head && python -m app.cli seed --if-empty && fastapi run --port 8000 --proxy-headers --forwarded-allow-ips '*'"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      start_period: 120s
+      retries: 10
+
+  worker:
+    <<: *api-image
+    command: saq app.worker.settings
+    depends_on:
+      api: { condition: service_healthy }
+
+  bot:
+    <<: *api-image
+    command: python -m app.bot
+    depends_on:
+      api: { condition: service_healthy }
+
+  admin:
+    build:
+      context: apps/admin
+      args:
+        API_INTERNAL_URL: http://api:8000
+    image: relay-admin
+    restart: unless-stopped
+    depends_on: [api]
+
+  # Local stand-in for the production Caddy: one origin for the API, widget, demo and admin.
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["127.0.0.1:8088:80"]
+    volumes: [./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro]
+    depends_on: [api, admin]
+
 volumes:
   pgdata:
+  models:
+  uploads:

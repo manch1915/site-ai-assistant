@@ -1,0 +1,12 @@
+:80 {
+	encode zstd gzip
+	handle /admin* {
+		reverse_proxy admin:3000
+	}
+	handle {
+		reverse_proxy api:8000 {
+			# Keep SSE answers streaming instead of buffering them.
+			flush_interval -1
+		}
+	}
+}
