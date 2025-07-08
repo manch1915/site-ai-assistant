@@ -11,7 +11,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useId, useRef, useState } from "react";
 
 import {
   Badge,
@@ -246,6 +246,7 @@ function FaqEditor({
 }) {
   const [question, setQuestion] = useState(initial.question);
   const [answer, setAnswer] = useState(initial.answer);
+  const id = useId();
   return (
     <form
       className="grid gap-3"
@@ -254,8 +255,9 @@ function FaqEditor({
         onSave({ question, answer });
       }}
     >
-      <Field label="Question">
+      <Field label="Question" htmlFor={`${id}-q`}>
         <Input
+          id={`${id}-q`}
           required
           minLength={3}
           value={question}
@@ -264,9 +266,16 @@ function FaqEditor({
       </Field>
       <Field
         label="Answer"
+        htmlFor={`${id}-a`}
         hint="Write it the way you'd say it to a customer. The assistant quotes it."
       >
-        <Textarea required rows={3} value={answer} onChange={(e) => setAnswer(e.target.value)} />
+        <Textarea
+          id={`${id}-a`}
+          required
+          rows={3}
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+        />
       </Field>
       <div className="flex justify-end gap-2">
         {onCancel && (
