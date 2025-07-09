@@ -59,7 +59,7 @@ function OutcomeStrip({ data }: { data: Overview }) {
             ) : null,
           )}
         </div>
-        <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+        <dl className="mt-4 grid gap-y-2">
           {parts.map((part) => (
             <div key={part.label} className="flex items-center gap-2.5 text-[13.5px]">
               <span className={cx("size-2.5 rounded-full", part.color)} aria-hidden />
@@ -205,7 +205,7 @@ export function OverviewPage() {
             <OutcomeStrip data={data} />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+          <div className="grid items-start gap-4 xl:grid-cols-[1.35fr_1fr]">
             <Panel
               title="Questions your pages don't answer"
               description="Similar questions are grouped. Answer one and the assistant uses it right away."
