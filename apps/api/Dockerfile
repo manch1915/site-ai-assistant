@@ -12,6 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
+    UV_HTTP_TIMEOUT=180 \
     HF_HOME=/models \
     UPLOAD_DIR=/srv/storage/uploads
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /bin/uv

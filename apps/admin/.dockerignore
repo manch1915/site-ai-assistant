@@ -1,0 +1,9 @@
+# Only what the build needs goes into the image context.
+*
+!src
+!public
+!package.json
+!package-lock.json
+!next.config.ts
+!tsconfig.json
+!eslint.config.mjs
