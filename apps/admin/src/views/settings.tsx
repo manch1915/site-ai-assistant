@@ -161,6 +161,66 @@ function Telegram() {
   );
 }
 
+function NewSite() {
+  const { me, selectSite } = useSession();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [domain, setDomain] = useState("");
+  const create = useMutation({
+    mutationFn: () => api.post<Site>("/sites", { name, domain }),
+    onSuccess: async (site) => {
+      await queryClient.invalidateQueries({ queryKey: ["me"] });
+      selectSite(site.id);
+      setName("");
+      setDomain("");
+    },
+  });
+  if (me.is_demo) return null;
+  return (
+    <Panel
+      title="Add another site"
+      description="Each site gets its own key, knowledge, domains and budget."
+    >
+      <form
+        className="flex flex-wrap items-end gap-3 p-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          create.mutate();
+        }}
+      >
+        <div className="min-w-[200px] flex-1">
+          <Field label="Name" htmlFor="new-site-name">
+            <Input
+              id="new-site-name"
+              required
+              minLength={2}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="min-w-[200px] flex-1">
+          <Field label="Domain" htmlFor="new-site-domain">
+            <Input
+              id="new-site-domain"
+              required
+              placeholder="example.com"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Button type="submit" variant="primary" loading={create.isPending}>
+          Create site
+        </Button>
+        <div className="w-full">
+          <ErrorNote error={create.error} />
+        </div>
+      </form>
+    </Panel>
+  );
+}
+
 type Draft = Pick<
   Site,
   "widget" | "instructions" | "confidence_threshold" | "monthly_token_budget"
@@ -486,6 +546,7 @@ export function SettingsPage() {
             <Snippet siteKey={data.public_key} />
             <Telegram />
           </div>
+          <NewSite />
         </div>
       ) : (
         <Skeleton className="h-96" />

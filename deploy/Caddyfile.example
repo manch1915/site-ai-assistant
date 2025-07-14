@@ -1,0 +1,17 @@
+# Site block for a server that already runs Caddy in Docker.
+# The relay containers join Caddy's network (see docker-compose.prod.yml).
+relay.example.com {
+	encode zstd gzip
+	header -Server
+
+	handle /admin* {
+		reverse_proxy relay-admin-1:3000
+	}
+
+	handle {
+		reverse_proxy relay-api-1:8000 {
+			# Streamed answers must not be buffered.
+			flush_interval -1
+		}
+	}
+}

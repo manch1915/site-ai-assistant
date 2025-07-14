@@ -1,0 +1,23 @@
+# Production override for a host with a shared Caddy:
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
+# Nothing is published on the host; Caddy reaches api and admin over its own network.
+
+services:
+  db:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  api:
+    environment:
+      ENV: prod
+    networks: [default, edge]
+  admin:
+    networks: [default, edge]
+  proxy:
+    # The host's Caddy takes this role.
+    scale: 0
+
+networks:
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-infra_default}
