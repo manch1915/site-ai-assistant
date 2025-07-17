@@ -258,7 +258,8 @@ class ChatService:
         )
 
     def _quote(self, site: Site, language: str, question: str, hits: list[Hit]) -> _Answer:
-        index, lines = best_passage([hit.text for hit in hits[:3]], question)
+        top = hits[:3]
+        index, lines = best_passage([h.text for h in top], question, [h.title for h in top])
         best = hits[index]
         intro = reply("quote_intro", language, site=site.name)
         lines = lines or [quote_excerpt(best.text)]

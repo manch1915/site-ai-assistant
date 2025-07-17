@@ -39,9 +39,12 @@ def _score(line: str, terms: list[str]) -> int:
     return sum(1 for term in terms if any(w.startswith(term) for w in words))
 
 
-def best_lines(text: str, question: str, limit: int = 3) -> tuple[int, list[str]]:
+def best_lines(text: str, question: str, limit: int = 3, title: str = "") -> tuple[int, list[str]]:
     """Returns how well the passage matches and the lines worth quoting."""
-    candidates = _sentences(text)
+    # A line repeating the title (a heading, or the question of a FAQ entry) answers nothing.
+    candidates = [
+        line for line in _sentences(text) if line.strip().lower() != title.strip().lower()
+    ]
     if not candidates:
         return 0, []
     terms = key_terms(question)
@@ -60,11 +63,14 @@ def best_lines(text: str, question: str, limit: int = 3) -> tuple[int, list[str]
     return top, list(dict.fromkeys(lines))[: limit + 2]
 
 
-def best_passage(texts: list[str], question: str) -> tuple[int, list[str]]:
+def best_passage(
+    texts: list[str], question: str, titles: list[str] | None = None
+) -> tuple[int, list[str]]:
     """Index of the passage with the best matching lines, and those lines."""
     best_index, best_score, best = 0, -1, list[str]()
     for index, text in enumerate(texts):
-        score, lines = best_lines(text, question)
+        title = titles[index] if titles and index < len(titles) else ""
+        score, lines = best_lines(text, question, title=title)
         if score > best_score:
             best_index, best_score, best = index, score, lines
     return best_index, best

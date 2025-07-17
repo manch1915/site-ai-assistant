@@ -73,6 +73,32 @@ DEMO_FAQ = [
 ]
 
 
+NARCISBIN_FAQ = [
+    (
+        "How much does a project cost?",
+        "It depends on the scope. Levon gives a written estimate with milestones and dates "
+        "after a short call or a description of the task. Write to him on Telegram: "
+        "t.me/narcisbin.",
+    ),
+    (
+        "Is Levon available for new projects?",
+        "Yes, he is taking on new projects. He works full time in the Yerevan time zone "
+        "(UTC+4) and usually replies on Telegram within a couple of hours.",
+    ),
+    (
+        "Can Levon build an AI assistant or chatbot for my website?",
+        "Yes. He builds assistants that answer from a company's own documents (RAG), process "
+        "requests automatically and hand conversations to a person when needed. This chat "
+        "widget is one of his projects.",
+    ),
+    (
+        "Сколько стоит разработка?",
+        "Зависит от объёма. Левон присылает письменную оценку с этапами и сроками после "
+        "короткого созвона или описания задачи. Написать можно в Telegram: t.me/narcisbin.",
+    ),
+]
+
+
 class Seeder:
     def __init__(
         self,
@@ -418,5 +444,10 @@ class Seeder:
             for path in sorted(NARCISBIN_DIR.glob("*.md"))
         ]
         await self.indexer.ingest_documents(source, documents)
+        for question, answer in NARCISBIN_FAQ:
+            item = FaqItem(site_id=site.id, question=question, answer=answer)
+            self.session.add(item)
+            await self.session.flush()
+            await self.indexer.upsert_faq(item)
         await self.session.commit()
         return site

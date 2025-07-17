@@ -44,3 +44,9 @@ def test_picks_the_passage_that_actually_answers() -> None:
 
 def test_falls_back_to_the_opening_lines() -> None:
     assert best_lines(PRICES, "zzz")[1][0] == "Repair prices"
+
+
+def test_faq_quotes_the_answer_not_the_question() -> None:
+    text = "Can you fix water damage?\n\nOften, yes. Bring it in the same day."
+    lines = best_lines(text, "fix water damage", title="Can you fix water damage?")[1]
+    assert lines == ["Often, yes.", "Bring it in the same day."]
