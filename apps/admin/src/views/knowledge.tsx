@@ -90,7 +90,7 @@ function Sources() {
   });
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <Panel
         title="Add knowledge"
         description="The assistant only answers from what is listed below."

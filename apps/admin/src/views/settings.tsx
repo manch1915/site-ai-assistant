@@ -78,13 +78,13 @@ function Preview({
       </p>
       <div
         className={cx(
-          "h-[600px] overflow-hidden rounded-2xl border border-line",
+          "h-[600px] overflow-hidden rounded-2xl border border-line p-4",
           settings.theme === "dark"
             ? "bg-[#0f1012]"
             : "bg-[repeating-linear-gradient(135deg,var(--sunken)_0_12px,var(--paper)_12px_24px)]",
         )}
       >
-        <div ref={host} className="h-full p-4" />
+        <div ref={host} className="h-full" />
       </div>
     </div>
   );
@@ -272,9 +272,9 @@ function SettingsForm({ site }: { site: Site }) {
   });
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_400px]">
       <form
-        className="grid gap-4"
+        className="grid grid-cols-1 gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           save.mutate();
@@ -540,9 +540,9 @@ export function SettingsPage() {
       />
       <ErrorNote error={error} />
       {data ? (
-        <div className="grid gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <SettingsForm key={data.id} site={data} />
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Snippet siteKey={data.public_key} />
             <Telegram />
           </div>

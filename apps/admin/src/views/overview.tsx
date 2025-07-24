@@ -167,8 +167,8 @@ export function OverviewPage() {
       />
       <ErrorNote error={error} />
       {isLoading || !data ? (
-        <div className="grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-[104px]" />
             ))}
@@ -176,7 +176,7 @@ export function OverviewPage() {
           <Skeleton className="h-48" />
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {!data.llm_enabled && (
             <p className="flex items-start gap-2.5 rounded-xl border border-line bg-card px-4 py-3 text-[13.5px] text-ink-2">
               <Info className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
@@ -185,7 +185,7 @@ export function OverviewPage() {
               answers.
             </p>
           )}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Stat label="Conversations" value={String(data.conversations)} />
             <Stat
               label="Solved without a person"
@@ -200,12 +200,12 @@ export function OverviewPage() {
             />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_1fr]">
             <DailyChart data={data} />
             <OutcomeStrip data={data} />
           </div>
 
-          <div className="grid items-start gap-4 xl:grid-cols-[1.35fr_1fr]">
+          <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1.35fr_1fr]">
             <Panel
               title="Questions your pages don't answer"
               description="Similar questions are grouped. Answer one and the assistant uses it right away."
