@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,10 +17,19 @@ class Settings(BaseSettings):
     admin_origin: str = "http://localhost:3010"
 
     # Any OpenAI-compatible endpoint. Empty key switches answers to quote mode.
-    llm_base_url: str = "https://openrouter.ai/api/v1"
-    llm_api_key: str = ""
-    llm_model: str = "openai/gpt-4.1-mini"
-    llm_max_tokens: int = 500
+    # The usual OPENAI_* / OPENROUTER_API_KEY names work too.
+    llm_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        validation_alias=AliasChoices("LLM_BASE_URL", "OPENAI_BASE_URL"),
+    )
+    llm_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("LLM_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY"),
+    )
+    llm_model: str = Field(
+        default="openai/gpt-4.1-mini", validation_alias=AliasChoices("LLM_MODEL", "OPENAI_MODEL")
+    )
+    llm_max_tokens: int = 400
     llm_temperature: float = 0.2
 
     embeddings_provider: Literal["local", "openai", "hash"] = "local"
@@ -34,6 +43,9 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""
+    # Off when the bot token is shared with other services: we then only send messages and
+    # never read updates, so nothing gets consumed from under them. Managers reply in the admin.
+    telegram_receive_updates: bool = True
 
     # Global safety net on top of per-site monthly budgets.
     daily_token_limit: int = 400_000
