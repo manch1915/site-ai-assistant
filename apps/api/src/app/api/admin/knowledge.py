@@ -291,7 +291,10 @@ async def telegram_status(site: SiteDep, user: UserDep, container: ContainerDep)
     username = settings.telegram_bot_username.lstrip("@")
     link = (
         f"https://t.me/{username}?startgroup={site.telegram_link_token}"
-        if settings.telegram_enabled and username and not user.is_demo
+        if settings.telegram_enabled
+        and settings.telegram_receive_updates
+        and username
+        and not user.is_demo
         else None
     )
     return TelegramOut(

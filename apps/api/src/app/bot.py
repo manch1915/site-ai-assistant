@@ -82,8 +82,8 @@ async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     container = get_container()
     settings = container.settings
-    if not settings.telegram_enabled:
-        log.warning("TELEGRAM_BOT_TOKEN is empty, the manager bot is idle")
+    if not settings.telegram_enabled or not settings.telegram_receive_updates:
+        log.warning("Not reading Telegram updates (no token, or the token is shared)")
         await asyncio.Event().wait()
     bot = build_bot(settings.telegram_bot_token)
     dispatcher = Dispatcher(container=container, sender=AiogramSender(bot))
