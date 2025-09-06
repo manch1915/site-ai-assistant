@@ -92,6 +92,14 @@ NARCISBIN_FAQ = [
         "widget is one of his projects.",
     ),
     (
+        "What has Levon built with AI and LLMs?",
+        "SwanLab AI turns supplier emails with Excel, PDF and Word attachments into priced "
+        "quotes and purchase orders. Telego answers from project documents with RAG, including "
+        "DWG and DXF drawings. Policy Gateway is an OpenAI-compatible gateway with policy checks "
+        "in front of LLM providers. At Yavvi.ai LLMs cut operators' manual work by about 40%. "
+        "This chat widget is another one.",
+    ),
+    (
         "Сколько стоит разработка?",
         "Зависит от объёма. Левон присылает письменную оценку с этапами и сроками после "
         "короткого созвона или описания задачи. Написать можно в Telegram: t.me/narcisbin.",
@@ -405,8 +413,9 @@ class Seeder:
             monthly_token_budget=500_000,
             instructions=(
                 "You answer for Levon, a freelance full-stack developer, in the third person. "
-                "Be concise and concrete. Never quote prices or deadlines: say the estimate "
-                "comes after a short call, and point to Telegram @narcisbin."
+                "Be concise and concrete. On rates, prices or deadlines, neither name nor deny "
+                "any figure: say the estimate depends on scope and comes after a short call, "
+                "and point to Telegram @narcisbin."
             ),
             widget=WidgetSettings(
                 title="Ask about Levon",
