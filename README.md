@@ -46,12 +46,33 @@ The first start downloads the embedding model (about 470 MB) and seeds a demo. T
 - http://localhost:8088/demo/ for Ohm & Solder, a made-up phone repair shop with the widget on every page;
 - http://localhost:8088/admin/ and press **Open the demo workspace**.
 
-Without an LLM key the assistant runs in **quote mode**: it replies with the lines from your pages that answer the question and links the source. To get written answers, put any OpenAI-compatible endpoint into `.env` (see `.env.example`) and restart:
+Without an LLM key the assistant runs in **quote mode**: it replies with the lines from your pages that answer the question and links the source. Everything else (search, the "don't know" branch, handoff, analytics) works the same.
+
+### Connect a language model
+
+Any OpenAI-compatible chat API works: OpenAI, OpenRouter, a self-hosted gateway, or a provider with servers in your country. Put three values into `.env` next to `docker-compose.yml` and restart:
 
 ```bash
-cp .env.example .env   # set LLM_API_KEY, optionally LLM_BASE_URL and LLM_MODEL
+cp .env.example .env
+```
+
+```dotenv
+# OpenRouter
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=sk-or-...
+LLM_MODEL=openai/gpt-4.1-mini
+
+# or OpenAI itself
+# OPENAI_BASE_URL=https://api.openai.com/v1
+# OPENAI_API_KEY=sk-...
+# LLM_MODEL=gpt-4.1-mini
+```
+
+```bash
 docker compose up -d
 ```
+
+`LLM_BASE_URL` / `LLM_API_KEY` mean the same as the `OPENAI_*` names, and `OPENROUTER_API_KEY` is read too. The overview page shows whether a model is connected. A typical answer costs about 1,500 tokens; `DAILY_TOKEN_LIMIT` and each site's monthly budget stop spending, after which answers switch back to quotes.
 
 ## Add it to a site
 
@@ -127,11 +148,12 @@ All settings come from environment variables; `.env.example` lists them with def
 
 | Variable | What it does |
 |---|---|
-| `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | OpenAI-compatible chat endpoint. Empty key means quote mode. |
+| `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | OpenAI-compatible chat endpoint (`OPENAI_*` names work too). Empty key means quote mode. |
 | `EMBEDDINGS_PROVIDER` | `local` (fastembed) or `openai` with `EMBEDDINGS_BASE_URL` and `EMBEDDINGS_API_KEY`. |
 | `DAILY_TOKEN_LIMIT` | Hard daily cap across all sites. Each site also has a monthly budget in the admin. |
 | `WIDGET_RATE_PER_MINUTE` | Messages per minute per visitor IP and site. |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` | Enables handoff to Telegram. Managers add the bot to a group with the link from Settings. |
+| `TELEGRAM_RECEIVE_UPDATES` | `false` for a bot token shared with other services: Relay only sends to the chat and managers reply in the admin. Link the chat with `python -m app.cli link-telegram <site_key> <chat_id>`. |
 | `OWNER_EMAIL`, `OWNER_PASSWORD`, `OWNER_SITE_KEY` | Creates a real (non-demo) workspace on first start. |
 | `PUBLIC_URL` | Public address of the installation, used in links and CORS. |
 
