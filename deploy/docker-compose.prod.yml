@@ -1,6 +1,15 @@
 # Production override for a host with a shared Caddy:
 #   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
 # Nothing is published on the host; Caddy reaches api and admin over its own network.
+#
+# api and admin also sit on the shared network, where other projects may have services
+# called "db", "redis" or "api". So inside the stack everything is addressed by its
+# container name, which is unique on the host.
+
+x-prod-env: &prod-env
+  ENV: prod
+  DATABASE_URL: postgresql+asyncpg://relay:${POSTGRES_PASSWORD:-relay}@relay-db-1:5432/relay
+  REDIS_URL: redis://relay-redis-1:6379/0
 
 services:
   db:
@@ -8,10 +17,19 @@ services:
   redis:
     ports: !reset []
   api:
-    environment:
-      ENV: prod
+    environment: *prod-env
     networks: [default, edge]
+  worker:
+    environment: *prod-env
+  bot:
+    environment: *prod-env
+    # Only needed when the bot reads replies from Telegram (TELEGRAM_RECEIVE_UPDATES=true
+    # and a token of its own). With a shared, send-only token the worker does the sending.
+    scale: ${BOT_REPLICAS:-0}
   admin:
+    build:
+      args:
+        API_INTERNAL_URL: http://relay-api-1:8000
     networks: [default, edge]
   proxy:
     # The host's Caddy takes this role.
