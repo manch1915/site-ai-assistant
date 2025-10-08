@@ -15,5 +15,7 @@ ENV_FILE="deploy/.env.production"
 cd "$(dirname "$0")/.."
 [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE (see .env.example)" >&2; exit 1; }
 
+# The release carries secrets, so it is unpacked into a directory only root can read.
 git archive --format=tar --add-file="$ENV_FILE" HEAD \
-  | ssh "$HOST" "mkdir -p '$DIR' && tar -x -C '$DIR' && cd '$DIR' && bash deploy/remote.sh"
+  | ssh "$HOST" "umask 077 && mkdir -p '$DIR' && chmod 700 '$DIR' \
+      && tar -x --no-same-permissions -C '$DIR' && cd '$DIR' && bash deploy/remote.sh"

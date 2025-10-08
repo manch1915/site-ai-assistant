@@ -424,7 +424,8 @@ class Seeder:
                     "Hi! I can tell you about Levon's projects, stack and how he works. For "
                     "anything else, I'll pass your message to him."
                 ),
-                accent="#2F5BD3",
+                accent="#FF6A2B",
+                theme="dark",
                 quick_questions=[
                     "What has Levon built with AI?",
                     "Does he build Telegram Mini Apps?",
