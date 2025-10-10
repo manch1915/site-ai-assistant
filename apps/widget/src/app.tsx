@@ -7,12 +7,30 @@ import { Icon } from "./icons";
 import { Markdown } from "./markdown";
 import { setOpenFlag } from "./storage";
 import styles from "./styles.css?inline";
-import type { ChatMessage, MountOptions, Source, WidgetConfig } from "./types";
+import type {
+  ChatMessage,
+  LocalizedTexts,
+  MountOptions,
+  Source,
+  WidgetConfig,
+  WidgetSettings,
+} from "./types";
 import { type ChatState, useChat } from "./use-chat";
 
 interface Controls {
   open(): void;
   close(): void;
+}
+
+/** Owner-written Russian texts when the interface is Russian; empty ones fall back. */
+export function localizedTexts(settings: WidgetSettings, lang: Lang): LocalizedTexts {
+  const ru = lang === "ru" ? settings.ru : undefined;
+  return {
+    title: ru?.title || settings.title,
+    subtitle: ru?.subtitle || settings.subtitle,
+    greeting: ru?.greeting || settings.greeting,
+    quick_questions: ru?.quick_questions?.length ? ru.quick_questions : settings.quick_questions,
+  };
 }
 
 function initials(name: string): string {
@@ -216,6 +234,7 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
     document.documentElement.lang || navigator.language,
   );
   const t = useMemo(() => translator(lang), [lang]);
+  const texts = localizedTexts(settings, lang);
   const chat = useChat(apiBase, siteKey, lang, t, !inline);
   const [open, setOpen] = useState(inline || startOpen);
   const [leadOpen, setLeadOpen] = useState(false);
@@ -258,7 +277,7 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
       ? t("waiting")
       : chat.status === "human" && chat.managerName
         ? t("joined", { name: chat.managerName })
-        : settings.subtitle;
+        : texts.subtitle;
 
   return (
     <div class={`relay ${themeClass} ${settings.position} ${inline ? "inline" : ""}`} style={style}>
@@ -266,7 +285,7 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
         <section
           class="panel"
           role={inline ? "region" : "dialog"}
-          aria-label={settings.title}
+          aria-label={texts.title}
           onKeyDown={(e) => {
             if (e.key === "Escape" && !inline) close();
           }}
@@ -276,7 +295,7 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
               {initials(config.site_name)}
             </span>
             <div class="head-text">
-              <h2>{settings.title}</h2>
+              <h2>{texts.title}</h2>
               <p class={chat.status === "waiting" ? "pending" : ""}>{statusLine}</p>
             </div>
             {!inline && (
@@ -289,12 +308,12 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
           <div class="messages" ref={listRef}>
             <div class="turn bot">
               <div class="bubble answer">
-                <Markdown text={settings.greeting} />
+                <Markdown text={texts.greeting} />
               </div>
             </div>
-            {empty && settings.quick_questions.length > 0 && (
+            {empty && texts.quick_questions.length > 0 && (
               <div class="quick">
-                {settings.quick_questions.map((question) => (
+                {texts.quick_questions.map((question) => (
                   <button type="button" class="chip" onClick={() => void chat.send(question)}>
                     {question}
                   </button>

@@ -9,6 +9,15 @@ QuickQuestion = Annotated[
 ]
 
 
+class LocalizedTexts(BaseModel):
+    """Optional Russian versions; empty fields fall back to the main texts."""
+
+    title: str = Field(default="", max_length=40)
+    subtitle: str = Field(default="", max_length=60)
+    greeting: str = Field(default="", max_length=300)
+    quick_questions: list[QuickQuestion] = Field(default_factory=list, max_length=4)
+
+
 class WidgetSettings(BaseModel):
     title: str = Field(default="Assistant", max_length=40)
     subtitle: str = Field(default="Answers from our help pages", max_length=60)
@@ -22,6 +31,7 @@ class WidgetSettings(BaseModel):
     show_sources: bool = True
     collect_leads: bool = True
     handoff_enabled: bool = True
+    ru: LocalizedTexts = Field(default_factory=LocalizedTexts)
 
 
 def host_of(origin: str) -> str | None:

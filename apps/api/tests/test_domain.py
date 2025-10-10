@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from app.domain.guard import MAX_MESSAGE_CHARS, inspect_message
 from app.domain.language import detect_language
@@ -19,6 +20,7 @@ from app.domain.retrieval import (
     fuse,
     term_coverage,
 )
+from app.domain.widget import WidgetSettings
 
 
 def hit(chunk_id: int, similarity: float | None = None, doc: str = "d") -> Hit:
@@ -127,3 +129,14 @@ def test_prompt_keeps_passages_as_data_and_adds_flag_note() -> None:
     assert "Be friendly." in messages[0].content
     assert messages[-2].role == "system"
     assert "<passages>" in messages[-1].content
+
+
+def test_widget_settings_saved_before_russian_texts_still_load() -> None:
+    settings = WidgetSettings.model_validate({"title": "Ohm & Solder"})
+    assert settings.ru.greeting == ""
+    assert settings.ru.quick_questions == []
+
+
+def test_russian_suggested_questions_follow_the_same_limits() -> None:
+    with pytest.raises(ValidationError):
+        WidgetSettings.model_validate({"ru": {"quick_questions": ["Цена?"] * 5}})

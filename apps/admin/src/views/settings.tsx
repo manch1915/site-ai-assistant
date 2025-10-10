@@ -18,7 +18,7 @@ import {
 } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
-import type { Site, TelegramStatus, WidgetSettings } from "@/lib/types";
+import type { LocalizedTexts, Site, TelegramStatus, WidgetSettings } from "@/lib/types";
 
 declare global {
   interface Window {
@@ -230,7 +230,11 @@ type Draft = Pick<
 
 function toDraft(site: Site): Draft {
   return {
-    widget: { ...site.widget, quick_questions: [...site.widget.quick_questions] },
+    widget: {
+      ...site.widget,
+      quick_questions: [...site.widget.quick_questions],
+      ru: { ...site.widget.ru, quick_questions: [...site.widget.ru.quick_questions] },
+    },
     instructions: site.instructions,
     confidence_threshold: site.confidence_threshold,
     monthly_token_budget: site.monthly_token_budget,
@@ -246,6 +250,8 @@ function SettingsForm({ site }: { site: Site }) {
   const widget = draft.widget;
   const setWidget = (patch: Partial<WidgetSettings>) =>
     setDraft((d) => ({ ...d, widget: { ...d.widget, ...patch } }));
+  const setRu = (patch: Partial<LocalizedTexts>) =>
+    setDraft((d) => ({ ...d, widget: { ...d.widget, ru: { ...d.widget.ru, ...patch } } }));
 
   const save = useMutation({
     mutationFn: () => {
@@ -255,6 +261,10 @@ function SettingsForm({ site }: { site: Site }) {
         widget: {
           ...widget,
           quick_questions: widget.quick_questions.filter((q) => q.trim().length >= 2),
+          ru: {
+            ...widget.ru,
+            quick_questions: widget.ru.quick_questions.filter((q) => q.trim().length >= 2),
+          },
         },
         confidence_threshold: draft.confidence_threshold,
       };
@@ -426,6 +436,58 @@ function SettingsForm({ site }: { site: Site }) {
                 </label>
               ))}
             </div>
+          </div>
+        </Panel>
+
+        <Panel title="Russian texts">
+          <div className="grid gap-5 p-5 sm:grid-cols-2">
+            <p className="text-[13px] text-ink-3 sm:col-span-2">
+              Shown when the widget speaks Russian. Leave a field empty to use the main text.
+            </p>
+            <Field label="Title" htmlFor="ru-title">
+              <Input
+                id="ru-title"
+                maxLength={40}
+                value={widget.ru.title}
+                onChange={(e) => setRu({ title: e.target.value })}
+              />
+            </Field>
+            <Field label="Subtitle" htmlFor="ru-subtitle">
+              <Input
+                id="ru-subtitle"
+                maxLength={60}
+                value={widget.ru.subtitle}
+                onChange={(e) => setRu({ subtitle: e.target.value })}
+              />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Greeting" htmlFor="ru-greeting">
+                <Textarea
+                  id="ru-greeting"
+                  rows={2}
+                  maxLength={300}
+                  value={widget.ru.greeting}
+                  onChange={(e) => setRu({ greeting: e.target.value })}
+                />
+              </Field>
+            </div>
+            <fieldset className="grid gap-2 sm:col-span-2">
+              <legend className="mb-1.5 text-[13px] font-medium">Suggested questions</legend>
+              {[0, 1, 2, 3].map((i) => (
+                <Input
+                  key={i}
+                  maxLength={60}
+                  aria-label={`Russian suggested question ${i + 1}`}
+                  placeholder="Optional"
+                  value={widget.ru.quick_questions[i] ?? ""}
+                  onChange={(e) => {
+                    const next = [...widget.ru.quick_questions];
+                    next[i] = e.target.value;
+                    setRu({ quick_questions: next.slice(0, 4) });
+                  }}
+                />
+              ))}
+            </fieldset>
           </div>
         </Panel>
 

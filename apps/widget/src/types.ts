@@ -8,6 +8,13 @@ export interface Source {
   snippet?: string;
 }
 
+export interface LocalizedTexts {
+  title: string;
+  subtitle: string;
+  greeting: string;
+  quick_questions: string[];
+}
+
 export interface WidgetSettings {
   title: string;
   subtitle: string;
@@ -21,6 +28,7 @@ export interface WidgetSettings {
   show_sources: boolean;
   collect_leads: boolean;
   handoff_enabled: boolean;
+  ru?: LocalizedTexts;
 }
 
 export interface WidgetConfig {
