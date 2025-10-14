@@ -17,7 +17,7 @@ from app.domain.enums import (
     SourceKind,
     SourceStatus,
 )
-from app.domain.widget import WidgetSettings
+from app.domain.widget import LocalizedTexts, WidgetSettings
 from app.infra.db.models import (
     Conversation,
     FaqItem,
@@ -39,6 +39,14 @@ from app.services.indexing import IndexingService
 STATIC_DIR = Path(__file__).resolve().parents[3] / "static"
 DEMO_DIR = STATIC_DIR / "demo"
 NARCISBIN_DIR = Path(__file__).resolve().parent / "content" / "narcisbin"
+# Section anchors on narcisbin.com, so source links land on the right block.
+NARCISBIN_ANCHORS = {
+    "about": "top",
+    "services": "services",
+    "projects": "work",
+    "experience": "experience",
+    "process-and-contact": "contact",
+}
 
 DEMO_KEY = "pk_demo_ohmsolder"
 DEMO_BANNER = re.compile(r'<div class="demo-note">.*?</div>\s*</div>', re.DOTALL)
@@ -432,6 +440,20 @@ class Seeder:
                     "How does a project start?",
                     "How can I contact him?",
                 ],
+                ru=LocalizedTexts(
+                    title="Спросите о Левоне",
+                    subtitle="Ответы по сайту narcisbin.com",
+                    greeting=(
+                        "Привет! Расскажу о проектах Левона, его стеке и о том, как он "
+                        "работает. Если вопрос не по моей части, передам ему сообщение."
+                    ),
+                    quick_questions=[
+                        "Что Левон делал с ИИ?",
+                        "Делает ли он Mini Apps в Telegram?",
+                        "С чего начинается проект?",
+                        "Как с ним связаться?",
+                    ],
+                ),
             ).model_dump(),
         )
         self.session.add(site)
@@ -449,7 +471,7 @@ class Seeder:
             RawDocument(
                 title=path.stem.replace("-", " ").capitalize(),
                 text=path.read_text(encoding="utf-8"),
-                url=f"https://narcisbin.com/#{path.stem}",
+                url=f"https://narcisbin.com/#{NARCISBIN_ANCHORS.get(path.stem, 'top')}",
             )
             for path in sorted(NARCISBIN_DIR.glob("*.md"))
         ]
