@@ -29,6 +29,14 @@ _PATTERNS = [
     r"режим разработчика",
 ]
 _INJECTION = re.compile("|".join(_PATTERNS), re.IGNORECASE)
+
+# Insults and obscenities get a short refusal instead of an answer or an offer to call a person.
+_ABUSE = re.compile(
+    r"\b(fuck|f\*ck|shit|bitch|cunt|asshole|motherf|dickhead|whore|slut|retard"
+    r"|(на|по|от)?ху[йяеёию]|пизд|еб[аеилнуё]|ёб|бля|сук[аи]\b|мудак|мудил|пидор|пидар|долбо[её]б"
+    r"|залуп|шлюх|гандон|дебил|урод)",
+    re.IGNORECASE,
+)
 _CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u200b-\u200f\u202a-\u202e]")
 
 
@@ -36,6 +44,7 @@ _CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u200b-\u200f\u202a-\u202e
 class GuardResult:
     text: str
     flagged: bool
+    abusive: bool = False
 
 
 def sanitize(text: str) -> str:
@@ -46,4 +55,8 @@ def sanitize(text: str) -> str:
 
 def inspect_message(text: str) -> GuardResult:
     clean = sanitize(text)
-    return GuardResult(text=clean, flagged=bool(_INJECTION.search(clean)))
+    return GuardResult(
+        text=clean,
+        flagged=bool(_INJECTION.search(clean)),
+        abusive=bool(_ABUSE.search(clean)),
+    )

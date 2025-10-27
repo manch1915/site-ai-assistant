@@ -107,7 +107,7 @@ class ChatService:
             conversation_id=conversation.id,
             role=MessageRole.VISITOR,
             content=guard.text,
-            flagged=guard.flagged,
+            flagged=guard.flagged or guard.abusive,
         )
         self.session.add(visitor)
         conversation.last_message_at = datetime.now(UTC)
@@ -120,6 +120,21 @@ class ChatService:
             return
         if conversation.status == ConversationStatus.CLOSED:
             conversation.status = ConversationStatus.BOT
+
+        if guard.abusive:
+            # No search, no model and no gap: nothing here is worth adding to the knowledge base.
+            text = reply("abuse", conversation.language, site=site.name)
+            yield ChatEvent("token", {"text": text})
+            bot = Message(
+                conversation_id=conversation.id, role=MessageRole.BOT, content=text, answered=True
+            )
+            self.session.add(bot)
+            await self.session.commit()
+            yield ChatEvent(
+                "done",
+                {"message_id": bot.id, "mode": "declined", "text": text, "actions": []},
+            )
+            return
 
         query = self._search_query(guard.text, history)
         found = await self.retrieval.search(site.id, query)

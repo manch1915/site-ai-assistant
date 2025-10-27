@@ -244,3 +244,16 @@ async def test_failed_call_is_estimated_against_budget(session: AsyncSession) ->
 
     usage = await session.scalar(select(UsageDaily))
     assert usage is not None and usage.tokens_in > 0
+
+
+async def test_abuse_gets_a_short_refusal_without_offers(session: AsyncSession) -> None:
+    site, conversation = await setup(session)
+    model = ScriptedModel("should not be called")
+
+    events = await collect(chat(session, model).handle(site, conversation, "can i fuck levon?"))
+
+    done = events[-1].data
+    assert done["mode"] == "declined"
+    assert done["actions"] == []
+    assert model.calls == []
+    assert await session.scalar(select(KnowledgeGap)) is None

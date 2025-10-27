@@ -12,6 +12,12 @@ _REPLIES: dict[str, dict[str, str]] = {
             "Могу передать вопрос менеджеру или оставьте контакт, вам ответят."
         ),
     },
+    "abuse": {
+        "en": "I won't continue in that tone. Ask about {site}'s work and services, and I'll "
+        "answer.",
+        "ru": "В таком тоне разговор продолжать не буду. Спросите о проектах и услугах, "
+        "и я отвечу.",
+    },
     "quote_intro": {
         "en": "Here's what I found in {site}'s materials:",
         "ru": "Вот что нашёл в материалах {site}:",
