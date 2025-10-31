@@ -171,9 +171,14 @@ async def test_handoff_then_manager_reply_from_admin(
         headers=headers,
     )
     handoff = await client.post(
-        f"/v1/widget/conversations/{conversation_id}/handoff", headers=headers
+        f"/v1/widget/conversations/{conversation_id}/handoff",
+        json={"name": "Inês", "contact": "+351 912 345 678"},
+        headers=headers,
     )
     assert handoff.json()["status"] == "waiting"
+    lead = await session.scalar(select(Lead))
+    assert lead is not None and lead.contact == "+351912345678"
+    assert lead.question == "Can you fix a drone?"
     assert ("handoff", conversation_id) in [
         (kind, str(value))
         for kind, value in container.notifier.events  # type: ignore[attr-defined]
@@ -301,7 +306,11 @@ async def test_analytics_counts_outcomes(client: AsyncClient, site: Site) -> Non
         json={"text": "battery warranty"},
         headers=headers2,
     )
-    await client.post(f"/v1/widget/conversations/{second}/handoff", headers=headers2)
+    await client.post(
+        f"/v1/widget/conversations/{second}/handoff",
+        json={"name": "Tomás", "contact": "tomas@example.com"},
+        headers=headers2,
+    )
 
     await login(client)
     data = (await client.get(f"/v1/admin/sites/{site.id}/analytics")).json()
@@ -374,3 +383,14 @@ async def test_non_http_page_urls_are_dropped(
     )
     conversation = await session.get(Conversation, response.json()["id"])
     assert conversation is not None and conversation.page_url is None
+
+
+async def test_handoff_needs_a_contact_a_manager_can_use(client: AsyncClient, site: Site) -> None:
+    conversation_id, headers = await start(client, site)
+    url = f"/v1/widget/conversations/{conversation_id}/handoff"
+
+    missing = await client.post(url, json={"name": "Inês"}, headers=headers)
+    nonsense = await client.post(url, json={"name": "Inês", "contact": "asap"}, headers=headers)
+
+    assert missing.status_code == 422
+    assert nonsense.status_code == 422

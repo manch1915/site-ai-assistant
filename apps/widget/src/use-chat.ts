@@ -24,7 +24,7 @@ export interface ChatState {
   busy: boolean;
   managerName: string | null;
   send(text: string): Promise<void>;
-  handoff(): Promise<void>;
+  handoff(person: { name: string; contact: string }): Promise<boolean>;
   rate(key: string, value: 1 | -1): Promise<void>;
   submitLead(lead: { name: string; contact: string; question: string }): Promise<boolean>;
   lastQuestion: string;
@@ -135,7 +135,7 @@ export function useChat(
               sources: event.sources ?? [],
               actions: event.actions ?? [],
               streaming: false,
-              rateable: event.mode !== "no_answer",
+              rateable: event.mode === "llm" || event.mode === "quote",
             });
           }
         }
@@ -148,16 +148,20 @@ export function useChat(
     [api, append, busy, ensureSession, patch, t],
   );
 
-  const handoff = useCallback(async () => {
-    try {
-      const current = await ensureSession();
-      const result = await api.handoff(current);
-      result.messages.map(fromServer).forEach(append);
-      setStatus(result.status);
-    } catch {
-      append({ key: localKey(), role: "system", content: t("error") });
-    }
-  }, [api, append, ensureSession, t]);
+  const handoff = useCallback(
+    async (person: { name: string; contact: string }) => {
+      try {
+        const current = await ensureSession();
+        const result = await api.handoff(current, person);
+        result.messages.map(fromServer).forEach(append);
+        setStatus(result.status);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [api, append, ensureSession],
+  );
 
   const rate = useCallback(
     async (key: string, value: 1 | -1) => {

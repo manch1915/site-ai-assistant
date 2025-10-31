@@ -90,8 +90,17 @@ class ManagerChat:
             for m in reversed(list(rows))
         ]
         page = f"\nPage: {html.escape(conversation.page_url)}" if conversation.page_url else ""
+        lead = await self.session.scalar(
+            select(Lead)
+            .where(Lead.conversation_id == conversation.id)
+            .order_by(Lead.created_at.desc())
+            .limit(1)
+        )
+        contact = (
+            f"\nContact: {html.escape(lead.name)}, {html.escape(lead.contact)}" if lead else ""
+        )
         text = (
-            f"<b>{html.escape(site.name)}</b> · a visitor asked for a person{page}\n\n"
+            f"<b>{html.escape(site.name)}</b> · a visitor asked for a person{page}{contact}\n\n"
             + "\n".join(lines)
             + "\n\n<i>Reply to this message and the visitor will see your answer in the chat.</i>"
         )

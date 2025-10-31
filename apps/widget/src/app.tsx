@@ -2,6 +2,7 @@ import { render } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { readableOn } from "./color";
+import { isValidContact } from "./contact";
 import { type Lang, pickLanguage, type Translate, translator } from "./i18n";
 import { Icon } from "./icons";
 import { Markdown } from "./markdown";
@@ -89,43 +90,82 @@ function Sources(props: { sources: Source[]; t: Translate; idPrefix: string }) {
   );
 }
 
-function LeadForm(props: {
+type ContactKind = "lead" | "handoff";
+
+function ContactForm(props: {
+  kind: ContactKind;
   t: Translate;
   question: string;
-  onSubmit: ChatState["submitLead"];
+  chat: ChatState;
   onDone: () => void;
 }) {
-  const { t, question, onSubmit, onDone } = props;
+  const { kind, t, question, chat, onDone } = props;
   const [state, setState] = useState<"idle" | "sending" | "error">("idle");
+  const [contactError, setContactError] = useState(false);
+  const contactRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const handoff = kind === "handoff";
+
+  useEffect(() => {
+    // The error line pushes the buttons below the fold of the message list.
+    const list = formRef.current?.parentElement;
+    if (contactError && list) list.scrollTop = list.scrollHeight;
+  }, [contactError]);
+
   return (
     <form
+      ref={formRef}
       class="lead"
+      noValidate
       onSubmit={async (event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
+        const name = String(data.get("name") ?? "").trim();
+        const contact = String(data.get("contact") ?? "").trim();
+        if (!name) return;
+        if (!isValidContact(contact)) {
+          setContactError(true);
+          contactRef.current?.focus();
+          return;
+        }
         setState("sending");
-        const ok = await onSubmit({
-          name: String(data.get("name") ?? ""),
-          contact: String(data.get("contact") ?? ""),
-          question: String(data.get("question") ?? ""),
-        });
+        const ok = handoff
+          ? await chat.handoff({ name, contact })
+          : await chat.submitLead({ name, contact, question: String(data.get("question") ?? "") });
         if (ok) onDone();
         else setState("error");
       }}
     >
-      <p class="lead-title">{t("formTitle")}</p>
+      <p class="lead-title">{handoff ? t("handoffTitle") : t("formTitle")}</p>
+      {handoff && <p class="lead-note">{t("handoffNote")}</p>}
       <label>
         <span>{t("yourName")}</span>
         <input name="name" required maxLength={120} autoComplete="name" />
       </label>
       <label>
         <span>{t("contact")}</span>
-        <input name="contact" required minLength={3} maxLength={200} autoComplete="email" />
+        <input
+          ref={contactRef}
+          name="contact"
+          required
+          maxLength={200}
+          placeholder={t("contactExample")}
+          aria-invalid={contactError ? "true" : undefined}
+          aria-describedby={contactError ? `contact-error-${kind}` : undefined}
+          onInput={() => setContactError(false)}
+        />
       </label>
-      <label>
-        <span>{t("question")}</span>
-        <textarea name="question" rows={2} maxLength={2000} value={question} />
-      </label>
+      {contactError && (
+        <p id={`contact-error-${kind}`} class="form-error" role="alert">
+          {t("contactInvalid")}
+        </p>
+      )}
+      {!handoff && (
+        <label>
+          <span>{t("question")}</span>
+          <textarea name="question" rows={2} maxLength={2000} value={question} />
+        </label>
+      )}
       {state === "error" && (
         <p class="form-error" role="alert">
           {t("error")}
@@ -136,7 +176,7 @@ function LeadForm(props: {
           {t("cancel")}
         </button>
         <button type="submit" class="primary" disabled={state === "sending"}>
-          {t("sendRequest")}
+          {handoff ? t("talkToPerson") : t("sendRequest")}
         </button>
       </div>
     </form>
@@ -150,10 +190,10 @@ function MessageView(props: {
   chat: ChatState;
   canHandoff: boolean;
   canLead: boolean;
-  onLead: () => void;
+  onForm: (kind: ContactKind) => void;
   onCite: (id: string) => void;
 }) {
-  const { message, t, showSources, chat, canHandoff, canLead, onLead, onCite } = props;
+  const { message, t, showSources, chat, canHandoff, canLead, onForm, onCite } = props;
   const idPrefix = `src-${message.key}`;
   if (message.role === "system") {
     return <p class="notice">{message.content}</p>;
@@ -190,13 +230,13 @@ function MessageView(props: {
       {actions.length > 0 && (
         <div class="actions">
           {actions.includes("handoff") && (
-            <button type="button" class="chip" onClick={() => void chat.handoff()}>
+            <button type="button" class="chip" onClick={() => onForm("handoff")}>
               <Icon name="person" size={15} />
               {t("talkToPerson")}
             </button>
           )}
           {actions.includes("lead") && (
-            <button type="button" class="chip" onClick={onLead}>
+            <button type="button" class="chip" onClick={() => onForm("lead")}>
               <Icon name="mail" size={15} />
               {t("leaveContact")}
             </button>
@@ -237,7 +277,7 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
   const texts = localizedTexts(settings, lang);
   const chat = useChat(apiBase, siteKey, lang, t, !inline);
   const [open, setOpen] = useState(inline || startOpen);
-  const [leadOpen, setLeadOpen] = useState(false);
+  const [form, setForm] = useState<ContactKind | null>(null);
   const [draft, setDraft] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -260,7 +300,7 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
     const last = chat.messages[chat.messages.length - 1];
     if (last && !last.streaming && last.role !== "visitor")
       setAnnouncement(last.content.slice(0, 300));
-  }, [chat.messages, leadOpen]);
+  }, [chat.messages, form]);
 
   const close = (): void => {
     setOpen(false);
@@ -328,8 +368,8 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
                 showSources={settings.show_sources}
                 chat={chat}
                 canHandoff={config.handoff_available && chat.status === "bot"}
-                canLead={settings.collect_leads}
-                onLead={() => setLeadOpen(true)}
+                canLead={settings.collect_leads && chat.status === "bot"}
+                onForm={setForm}
                 onCite={(id) => {
                   const target = listRef.current?.querySelector<HTMLElement>(`[id="${id}"]`);
                   target?.scrollIntoView({ block: "nearest" });
@@ -337,12 +377,14 @@ function Widget(props: MountOptions & { register: (c: Controls) => void }) {
                 }}
               />
             ))}
-            {leadOpen && (
-              <LeadForm
+            {form && (
+              <ContactForm
+                key={form}
+                kind={form}
                 t={t}
                 question={chat.lastQuestion}
-                onSubmit={chat.submitLead}
-                onDone={() => setLeadOpen(false)}
+                chat={chat}
+                onDone={() => setForm(null)}
               />
             )}
           </div>

@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.enums import ConversationStatus, MessageRole
@@ -38,9 +39,29 @@ class HandoffService:
         )
         return message
 
-    async def request(self, conversation: Conversation) -> Message | None:
+    async def request(self, conversation: Conversation, name: str, contact: str) -> Message | None:
         if conversation.status in (ConversationStatus.WAITING, ConversationStatus.HUMAN):
             return None
+        # Saved as a lead too: if nobody answers in the chat, the contact is still there.
+        question = await self.session.scalar(
+            select(Message.content)
+            .where(
+                Message.conversation_id == conversation.id,
+                Message.role == MessageRole.VISITOR,
+            )
+            .order_by(Message.id.desc())
+            .limit(1)
+        )
+        conversation.visitor_name = name.strip()[:120]
+        self.session.add(
+            Lead(
+                site_id=conversation.site_id,
+                conversation_id=conversation.id,
+                name=conversation.visitor_name,
+                contact=contact,
+                question=(question or "")[:2000],
+            )
+        )
         conversation.status = ConversationStatus.WAITING
         conversation.handoff_requested_at = datetime.now(UTC)
         message = await self._system(conversation, reply("handoff_waiting", conversation.language))

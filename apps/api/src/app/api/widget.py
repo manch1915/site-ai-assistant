@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AfterValidator, BaseModel, Field, field_validator
 from sqlalchemy import select
 
 from app.api.deps import (
@@ -21,6 +21,7 @@ from app.api.deps import (
     RateLimiterDep,
     SessionDep,
 )
+from app.domain.contact import check_contact
 from app.domain.enums import ConversationStatus
 from app.domain.widget import WidgetSettings, origin_allowed
 from app.infra.db.models import Conversation, Message, Site
@@ -135,9 +136,17 @@ class RatingIn(BaseModel):
     value: Literal[-1, 1]
 
 
+Contact = Annotated[str, Field(min_length=3, max_length=200), AfterValidator(check_contact)]
+
+
+class HandoffIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    contact: Contact
+
+
 class LeadIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    contact: str = Field(min_length=3, max_length=200)
+    contact: Contact
     question: str = Field(default="", max_length=2000)
     conversation_id: uuid.UUID | None = None
 
@@ -228,8 +237,10 @@ async def conversation_events(
 
 
 @router.post("/conversations/{conversation_id}/handoff")
-async def request_handoff(visitor: VisitorDep, handoff: HandoffServiceDep) -> TranscriptOut:
-    message = await handoff.request(visitor.conversation)
+async def request_handoff(
+    body: HandoffIn, visitor: VisitorDep, handoff: HandoffServiceDep
+) -> TranscriptOut:
+    message = await handoff.request(visitor.conversation, body.name, body.contact)
     messages = [MessageOut.model_validate(message_payload(message))] if message else []
     return TranscriptOut(status=visitor.conversation.status, messages=messages)
 

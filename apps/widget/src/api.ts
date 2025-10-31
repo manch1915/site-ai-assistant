@@ -10,7 +10,7 @@ export type AnswerEvent =
   | { type: "token"; text: string }
   | {
       type: "done";
-      mode: "llm" | "quote" | "no_answer" | "human";
+      mode: "llm" | "quote" | "no_answer" | "declined" | "human";
       text?: string;
       sources?: Source[];
       actions?: ("handoff" | "lead")[];
@@ -91,10 +91,14 @@ export class WidgetApi {
     }
   }
 
-  handoff(session: Session): Promise<{ status: Status; messages: ServerMessage[] }> {
+  handoff(
+    session: Session,
+    person: { name: string; contact: string },
+  ): Promise<{ status: Status; messages: ServerMessage[] }> {
     return this.json(`/conversations/${session.id}/handoff`, {
       method: "POST",
       headers: this.headers(session),
+      body: JSON.stringify(person),
     });
   }
 

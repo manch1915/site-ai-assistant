@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from app.domain.contact import normalize_contact
 from app.domain.guard import MAX_MESSAGE_CHARS, inspect_message
 from app.domain.language import detect_language
 from app.domain.prompting import (
@@ -140,3 +141,31 @@ def test_widget_settings_saved_before_russian_texts_still_load() -> None:
 def test_russian_suggested_questions_follow_the_same_limits() -> None:
     with pytest.raises(ValidationError):
         WidgetSettings.model_validate({"ru": {"quick_questions": ["Цена?"] * 5}})
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("@narcisbin", "@narcisbin"),
+        ("https://t.me/narcisbin", "@narcisbin"),
+        ("+374 (91) 12-34-56", "+37491123456"),
+        ("anna@example.com", "anna@example.com"),
+        ("call me", None),
+        ("12345", None),
+        ("@ab", None),
+    ],
+)
+def test_contact_must_be_telegram_phone_or_email(raw: str, expected: str | None) -> None:
+    assert normalize_contact(raw) == expected
+
+
+@pytest.mark.parametrize("text", ["can i fuck levon?", "ты дебил", "иди нахуй", "Блять, где ответ"])
+def test_guard_spots_abuse(text: str) -> None:
+    assert inspect_message(text).abusive
+
+
+@pytest.mark.parametrize(
+    "text", ["Он употребляет TypeScript?", "Who wrote the Dickens site?", "Сколько стоит сайт?"]
+)
+def test_guard_leaves_ordinary_words_alone(text: str) -> None:
+    assert not inspect_message(text).abusive
