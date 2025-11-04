@@ -4,6 +4,8 @@ Relay is a chat widget you add to any site with one `<script>` tag. It answers v
 
 ![The widget on the demo shop answering a price question with a cited source](docs/screenshots/demo-shop-widget.png)
 
+**Live demo:** [a made-up repair shop with the widget](https://relay.narcisbin.com/demo/) and [its admin panel](https://relay.narcisbin.com/admin/) (press "Open the demo workspace", no sign-up). The same widget answers questions about me on [narcisbin.com](https://narcisbin.com).
+
 ## What it does
 
 **For visitors**
@@ -11,7 +13,8 @@ Relay is a chat widget you add to any site with one `<script>` tag. It answers v
 - Streams answers in the visitor's language, with numbered citations that link to the source page.
 - Starts with suggested questions, so nobody stares at an empty box.
 - Below a confidence threshold, answers "I don't know" and offers two ways out: talk to a person or leave a contact.
-- Hands the chat to a manager. The manager replies from Telegram (or the admin panel) and the reply appears in the same widget, live.
+- Hands the chat to a manager. First it asks for a name and a Telegram username, phone or email and checks that it looks real, so the manager can write back even if the visitor closes the tab. The manager replies from Telegram (or the admin panel) and the reply appears in the same widget, live.
+- Doesn't play along with insults: a rude message gets a short refusal, no model call and no offer to call a person.
 - Works on phones as a full-screen sheet, follows the page language, supports light and dark themes, keyboard and screen readers.
 
 **For the site owner**
