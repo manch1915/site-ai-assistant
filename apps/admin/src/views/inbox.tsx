@@ -68,7 +68,7 @@ function ConversationList({
   });
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid gap-3 border-b border-line p-3">
         <div className="relative">
           <Search
@@ -160,7 +160,7 @@ function ConversationList({
       </div>
       {data && (
         <p className="border-t border-line px-4 py-2 text-[12px] text-ink-3">
-          {data.total} conversations
+          {data.total} {data.total === 1 ? "conversation" : "conversations"}
         </p>
       )}
     </div>
@@ -281,7 +281,7 @@ function ConversationView({ id, onBack }: { id: string; onBack: () => void }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3">
         <button
           type="button"
