@@ -2,7 +2,7 @@ import random
 import re
 import secrets
 import shutil
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import delete, select
@@ -278,7 +278,7 @@ class Seeder:
         conversation.last_message_at = moment
 
     async def _sample_traffic(self, site: Site) -> None:
-        tokens_by_day: dict[datetime, int] = {}
+        tokens_by_day: dict[date, int] = {}
 
         for _ in range(96):
             exchange = self.rng.choice(script.ANSWERED)
@@ -302,8 +302,7 @@ class Seeder:
             roll = self.rng.random()
             conversation.rating = 1 if roll < 0.42 else (-1 if roll > 0.95 else None)
             self.session.add(conversation)
-            day = started.replace(hour=0, minute=0)
-            tokens_by_day[day] = tokens_by_day.get(day, 0) + 1500
+            tokens_by_day[started.date()] = tokens_by_day.get(started.date(), 0) + 1500
 
         for question, language, times in script.UNANSWERED:
             embedding = await self.embedder.embed_query(question)
@@ -389,7 +388,7 @@ class Seeder:
             self.session.add(
                 UsageDaily(
                     site_id=site.id,
-                    day=day.date(),
+                    day=day,
                     requests=tokens // 1500,
                     tokens_in=int(tokens * 0.93),
                     tokens_out=int(tokens * 0.07),
