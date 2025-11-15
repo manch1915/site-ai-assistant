@@ -14,6 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_HTTP_TIMEOUT=180 \
     HF_HOME=/models \
+    FASTEMBED_CACHE_PATH=/models/fastembed \
     UPLOAD_DIR=/srv/storage/uploads
 COPY --from=ghcr.io/astral-sh/uv:0.9 /uv /bin/uv
 WORKDIR /srv/app

@@ -496,7 +496,7 @@ function SettingsForm({ site }: { site: Site }) {
             <Field
               label={`Confidence threshold: ${Math.round(draft.confidence_threshold * 100)}%`}
               htmlFor="threshold"
-              hint="Below this the assistant says it doesn't know and offers a person or a contact form. Higher means fewer answers but fewer mistakes. 35% was tuned on the demo questions."
+              hint="Below this the assistant says it doesn't know and offers a person or a contact form. Higher means fewer answers but fewer mistakes. 36% was tuned on the demo questions."
             >
               <input
                 id="threshold"

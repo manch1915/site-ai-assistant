@@ -102,7 +102,7 @@ The code follows a plain layered layout. `domain/` holds pure logic (chunking, s
 
 ### Confidence threshold
 
-`python -m app.cli calibrate` runs 37 questions against the demo shop: 25 that its pages answer (in English and Russian) and 12 that they don't, including off-topic and on-topic-but-missing ones. With the default threshold of 0.35, 35 of 37 land on the right side. The two misses are short Russian questions to an English knowledge base; for a bilingual audience, add content in both languages.
+`python -m app.cli calibrate` runs 37 questions against the demo shop: 25 that its pages answer (in English and Russian) and 12 that they don't, including off-topic and on-topic-but-missing ones. With the default threshold of 0.36, 34 of 37 land on the right side, with the full model and with its int8 build alike. Two misses are short Russian questions to an English knowledge base (for a bilingual audience, add content in both languages); the third asks about home pickup, which the pages only cover indirectly.
 
 ### Prompt injection
 
@@ -153,6 +153,8 @@ All settings come from environment variables; `.env.example` lists them with def
 |---|---|
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | OpenAI-compatible chat endpoint (`OPENAI_*` names work too). Empty key means quote mode. |
 | `EMBEDDINGS_PROVIDER` | `local` (fastembed) or `openai` with `EMBEDDINGS_BASE_URL` and `EMBEDDINGS_API_KEY`. |
+| `EMBEDDINGS_MODEL_FILE` | ONNX file of the local model. The default int8 build needs about a quarter of the memory of `onnx/model.onnx`. After changing it, run `python -m app.cli reembed`. |
+| `RUN_WORKER_IN_API` | `true` runs the job queue inside the API process, so the model is loaded once. Set the `worker` service to zero replicas then. |
 | `DAILY_TOKEN_LIMIT` | Hard daily cap across all sites. Each site also has a monthly budget in the admin. |
 | `WIDGET_RATE_PER_MINUTE` | Messages per minute per visitor IP and site. |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` | Enables handoff to Telegram. Managers add the bot to a group with the link from Settings. |
@@ -163,3 +165,5 @@ All settings come from environment variables; `.env.example` lists them with def
 ## Deployment
 
 `docker-compose.yml` runs the whole stack behind a small Caddy proxy on one origin: `/admin` goes to Next.js, everything else to the API. On a server with an existing Caddy, drop the `proxy` service and add a site block like the one in [`deploy/Caddyfile.example`](deploy/Caddyfile.example). Keep `flush_interval -1` on the API route, otherwise streamed answers arrive in one piece. The public demo account can't crawl other sites, change bot instructions, domains or budget, and the demo workspace is rebuilt every six hours.
+
+On a small shared server, `deploy/docker-compose.prod.yml` keeps the whole installation in about 0.6 GB: the job queue runs inside the API process (`RUN_WORKER_IN_API=true`), the embedding model is the int8 build, and every container has a memory limit.

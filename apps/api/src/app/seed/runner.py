@@ -163,7 +163,7 @@ class Seeder:
             public_key=DEMO_KEY,
             telegram_link_token=secrets.token_urlsafe(12),
             allowed_domains=["ohmsolder.example"],
-            confidence_threshold=0.35,
+            confidence_threshold=0.36,
             monthly_token_budget=300_000,
             instructions=(
                 "Sound like a friendly shop assistant. Keep prices in euros exactly as written. "
@@ -416,7 +416,7 @@ class Seeder:
             public_key=site_key or f"pk_{secrets.token_urlsafe(12)}",
             telegram_link_token=secrets.token_urlsafe(12),
             allowed_domains=["narcisbin.com"],
-            confidence_threshold=0.35,
+            confidence_threshold=0.36,
             monthly_token_budget=500_000,
             instructions=(
                 "You answer for Levon, a freelance full-stack developer, in the third person. "

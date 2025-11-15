@@ -89,7 +89,7 @@ class Site(Base):
     allowed_domains: Mapped[list[str]] = mapped_column(ARRAY(String(253)), default=list)
     widget: Mapped[dict[str, Any]] = mapped_column(default=dict)
     instructions: Mapped[str] = mapped_column(Text, default="")
-    confidence_threshold: Mapped[float] = mapped_column(Float, default=0.35)
+    confidence_threshold: Mapped[float] = mapped_column(Float, default=0.36)
     monthly_token_budget: Mapped[int] = mapped_column(Integer, default=300_000)
     telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger)
     telegram_chat_title: Mapped[str | None] = mapped_column(String(255))

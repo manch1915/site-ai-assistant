@@ -55,8 +55,9 @@ class HashEmbedder:
 class LocalEmbedder:
     """multilingual-e5 via fastembed (ONNX on CPU). Expects query:/passage: prefixes."""
 
-    def __init__(self, model_name: str, dim: int) -> None:
+    def __init__(self, model_name: str, model_file: str, dim: int) -> None:
         self.model_name = model_name
+        self.model_file = model_file
         self.dim = dim
         self._model: Any = None
         self._lock = threading.Lock()
@@ -78,9 +79,10 @@ class LocalEmbedder:
                         normalization=True,
                         sources=ModelSource(hf=self.model_name),
                         dim=self.dim,
-                        model_file="onnx/model.onnx",
+                        model_file=self.model_file,
                     )
-                self._model = TextEmbedding(model_name=self.model_name)
+                # The arena keeps the peak of every batch; without it memory goes back down.
+                self._model = TextEmbedding(model_name=self.model_name, enable_cpu_mem_arena=False)
         return self._model
 
     def _run(self, texts: list[str]) -> list[list[float]]:
@@ -126,4 +128,6 @@ def build_embedder(settings: Settings) -> Embedder:
             api_key=settings.embeddings_api_key or settings.llm_api_key,
         )
         return OpenAIEmbedder(client, settings.embeddings_model, settings.embedding_dim)
-    return LocalEmbedder(settings.embeddings_model, settings.embedding_dim)
+    return LocalEmbedder(
+        settings.embeddings_model, settings.embeddings_model_file, settings.embedding_dim
+    )

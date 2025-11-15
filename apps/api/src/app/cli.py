@@ -62,6 +62,13 @@ async def calibrate(container: Container) -> None:
         print(f"{correct}/{total} on the right side of threshold {threshold}")
 
 
+async def reembed(container: Container) -> None:
+    async with container.database.session() as session:
+        indexer = IndexingService(session, container.embedder, container.crawler, container.storage)
+        chunks, gaps = await indexer.reembed_all()
+    log.info("Re-embedded %d chunks and %d knowledge gaps", chunks, gaps)
+
+
 async def link_telegram(container: Container, site_key: str, chat_id: int, title: str) -> None:
     """For bots that don't read updates (shared tokens), where the /start link can't work."""
     async with container.database.session() as session:
@@ -82,6 +89,7 @@ def main() -> None:
     seed.add_argument("--if-empty", action="store_true", help="Do nothing if data exists")
     commands.add_parser("reset-demo", help="Recreate the public demo workspace")
     commands.add_parser("calibrate", help="Check the confidence threshold on sample questions")
+    commands.add_parser("reembed", help="Recompute all vectors after changing the model")
     link = commands.add_parser(
         "link-telegram", help="Send a site's handoffs to a Telegram chat without the /start link"
     )
@@ -92,6 +100,9 @@ def main() -> None:
     container = get_container()
     if args.command == "calibrate":
         asyncio.run(calibrate(container))
+        return
+    if args.command == "reembed":
+        asyncio.run(reembed(container))
         return
     if args.command == "link-telegram":
         asyncio.run(link_telegram(container, args.site_key, args.chat_id, args.title))

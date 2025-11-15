@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.chunking import chunk_text
 from app.domain.enums import SourceKind, SourceStatus
 from app.infra.crawler import Crawler
-from app.infra.db.models import Chunk, Document, FaqItem, Source
+from app.infra.db.models import Chunk, Document, FaqItem, KnowledgeGap, Source
 from app.infra.embeddings import Embedder
 from app.infra.parsers import RawDocument, parse_file
 from app.infra.storage import FileStorage
@@ -198,6 +198,27 @@ class IndexingService:
         await self.session.flush()
         await self._refresh_counts(source)
         source.indexed_at = datetime.now(UTC)
+
+    async def reembed_all(self, batch: int = 64) -> tuple[int, int]:
+        """Recompute stored vectors with the current model, from the texts already saved."""
+        rows = (
+            await self.session.execute(
+                select(Chunk, Document.title).join(Document, Chunk.document_id == Document.id)
+            )
+        ).all()
+        for start in range(0, len(rows), batch):
+            part = rows[start : start + batch]
+            vectors = await self.embedder.embed_passages(
+                [f"{title}\n{chunk.text}" for chunk, title in part]
+            )
+            for (chunk, _), vector in zip(part, vectors, strict=True):
+                chunk.embedding = vector
+            await self.session.flush()
+        gaps = list(await self.session.scalars(select(KnowledgeGap)))
+        for gap in gaps:
+            gap.embedding = await self.embedder.embed_query(gap.question)
+        await self.session.commit()
+        return len(rows), len(gaps)
 
     async def remove_faq(self, item: FaqItem) -> None:
         source = await self.faq_source(item.site_id)

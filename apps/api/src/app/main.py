@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -22,7 +23,16 @@ def create_app(container: Container | None = None) -> FastAPI:
         app.state.container = container or get_container()
         # Loading the embedding model takes seconds; pay it at startup, not on the first visitor.
         await app.state.container.embedder.embed_query("warm up")
+        worker = None
+        if app.state.container.settings.run_worker_in_api:
+            from app.worker import build_worker  # noqa: PLC0415  (pulls in aiogram)
+
+            worker = build_worker()
+            worker_task = asyncio.create_task(worker.start())
         yield
+        if worker is not None:
+            await worker.stop()
+            worker_task.cancel()
         await app.state.container.redis.aclose()
         await dispose_database()
 

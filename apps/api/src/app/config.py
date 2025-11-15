@@ -34,6 +34,9 @@ class Settings(BaseSettings):
 
     embeddings_provider: Literal["local", "openai", "hash"] = "local"
     embeddings_model: str = "intfloat/multilingual-e5-small"
+    # The int8 build of the same model: a quarter of the memory, near-identical vectors.
+    # Changing it means running `python -m app.cli reembed`.
+    embeddings_model_file: str = "onnx/model_qint8_avx512_vnni.onnx"
     embeddings_base_url: str = ""
     embeddings_api_key: str = ""
     embedding_dim: int = 384
@@ -64,6 +67,9 @@ class Settings(BaseSettings):
     owner_password: str = ""
     owner_site_key: str = ""
     demo_reset_cron: str = "0 */6 * * *"
+    # Small installs run the queue worker inside the API process, so the embedding
+    # model is loaded once instead of twice.
+    run_worker_in_api: bool = False
 
     @property
     def llm_enabled(self) -> bool:

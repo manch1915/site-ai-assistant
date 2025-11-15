@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from functools import cache
 
 from aiogram import Bot
-from saq import CronJob
+from saq import CronJob, Worker
 from saq.types import Context as SaqContext
 
 from app.cli import run_seed
@@ -65,3 +65,8 @@ settings = {
     "cron_jobs": [CronJob(reset_demo, cron=get_container().settings.demo_reset_cron)],
     "concurrency": 4,
 }
+
+
+def build_worker() -> Worker[Context]:
+    """The same worker, for running inside the API process (RUN_WORKER_IN_API)."""
+    return Worker(**settings)  # type: ignore[arg-type]

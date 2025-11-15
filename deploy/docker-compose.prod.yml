@@ -5,6 +5,9 @@
 # api and admin also sit on the shared network, where other projects may have services
 # called "db", "redis" or "api". So inside the stack everything is addressed by its
 # container name, which is unique on the host.
+#
+# The host is shared with other projects, so the API also runs the job queue (one copy
+# of the embedding model instead of two) and every container has a memory limit.
 
 x-prod-env: &prod-env
   ENV: prod
@@ -14,13 +17,19 @@ x-prod-env: &prod-env
 services:
   db:
     ports: !reset []
+    mem_limit: 384m
   redis:
     ports: !reset []
+    mem_limit: 96m
   api:
-    environment: *prod-env
+    environment:
+      <<: *prod-env
+      RUN_WORKER_IN_API: "true"
     networks: [default, edge]
+    mem_limit: 1g
   worker:
     environment: *prod-env
+    scale: ${WORKER_REPLICAS:-0}
   bot:
     environment: *prod-env
     # Only needed when the bot reads replies from Telegram (TELEGRAM_RECEIVE_UPDATES=true
@@ -31,6 +40,7 @@ services:
       args:
         API_INTERNAL_URL: http://relay-api-1:8000
     networks: [default, edge]
+    mem_limit: 192m
   proxy:
     # The host's Caddy takes this role.
     scale: 0
