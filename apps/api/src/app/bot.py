@@ -3,9 +3,11 @@
 import asyncio
 import html
 import logging
+import uuid
 
 from aiogram import Dispatcher, F, Router
 from aiogram.filters import CommandObject, CommandStart
+from aiogram.filters.callback_data import CallbackData
 from aiogram.types import CallbackQuery, Message
 
 from app.container import Container, get_container
@@ -13,7 +15,7 @@ from app.infra.db.models import Conversation
 from app.infra.realtime import EventBus
 from app.infra.telegram import AiogramSender, build_bot
 from app.services.handoff import HandoffService
-from app.services.manager_chat import CloseChat, ManagerChat
+from app.services.manager_chat import CLOSE_PREFIX, ManagerChat
 
 log = logging.getLogger(__name__)
 router = Router()
@@ -60,6 +62,10 @@ async def manager_reply(message: Message, container: Container, sender: AiogramS
         await handoff.manager_reply(conversation, message.text, author)
         # Replying to the manager's own message should reach the same visitor too.
         await manager_chat.track(message.chat.id, message.message_id, conversation.id)
+
+
+class CloseChat(CallbackData, prefix=CLOSE_PREFIX):
+    conversation_id: uuid.UUID
 
 
 @router.callback_query(CloseChat.filter())

@@ -3,11 +3,8 @@
 import html
 import secrets
 import uuid
-from typing import Protocol
+from typing import Any, Protocol
 
-from aiogram.filters.callback_data import CallbackData
-from aiogram.types import InlineKeyboardMarkup
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,8 +19,8 @@ ROLE_LABELS = {
 }
 
 
-class CloseChat(CallbackData, prefix="close"):
-    conversation_id: uuid.UUID
+# Same format as aiogram's CallbackData with prefix "close", which the bot parses.
+CLOSE_PREFIX = "close"
 
 
 class SentMessage(Protocol):
@@ -38,14 +35,13 @@ class TelegramSender(Protocol):
         text: str,
         *,
         reply_to_message_id: int | None = None,
-        reply_markup: InlineKeyboardMarkup | None = None,
+        reply_markup: dict[str, Any] | None = None,
     ) -> SentMessage: ...
 
 
-def close_keyboard(conversation_id: uuid.UUID) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.button(text="Close chat", callback_data=CloseChat(conversation_id=conversation_id))
-    return builder.as_markup()
+def close_keyboard(conversation_id: uuid.UUID) -> dict[str, Any]:
+    button = {"text": "Close chat", "callback_data": f"{CLOSE_PREFIX}:{conversation_id.hex}"}
+    return {"inline_keyboard": [[button]]}
 
 
 def _clip(text: str, limit: int = 600) -> str:

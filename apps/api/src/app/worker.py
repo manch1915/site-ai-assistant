@@ -3,13 +3,12 @@ import uuid
 from collections.abc import Awaitable, Callable
 from functools import cache
 
-from aiogram import Bot
 from saq import CronJob, Worker
 from saq.types import Context as SaqContext
 
 from app.cli import run_seed
 from app.container import get_container
-from app.infra.telegram import AiogramSender, build_bot
+from app.infra.bot_api import BotApiSender
 from app.services.indexing import IndexingService
 from app.services.manager_chat import ManagerChat
 
@@ -20,9 +19,9 @@ Context = SaqContext
 
 
 @cache
-def _bot() -> Bot | None:
+def _sender() -> BotApiSender | None:
     settings = get_container().settings
-    return build_bot(settings.telegram_bot_token) if settings.telegram_enabled else None
+    return BotApiSender(settings.telegram_bot_token) if settings.telegram_enabled else None
 
 
 async def index_source(_: Context, *, source_id: str) -> None:
@@ -33,11 +32,11 @@ async def index_source(_: Context, *, source_id: str) -> None:
 
 
 async def _with_manager_chat(action: Callable[[ManagerChat], Awaitable[bool]]) -> None:
-    bot = _bot()
-    if bot is None:
+    sender = _sender()
+    if sender is None:
         return  # no Telegram configured: the admin inbox is the only channel
     async with get_container().database.session() as session:
-        await action(ManagerChat(session, AiogramSender(bot)))
+        await action(ManagerChat(session, sender))
 
 
 async def notify_handoff(_: Context, *, conversation_id: str) -> None:

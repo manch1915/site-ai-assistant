@@ -1,11 +1,17 @@
+import json
+import uuid
 from dataclasses import dataclass, field
+from typing import Any
 
-from aiogram.types import InlineKeyboardMarkup
+import httpx
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot import CloseChat
 from app.domain.enums import MessageRole
+from app.infra.bot_api import BotApiSender, TelegramError
 from app.infra.db.models import Conversation, Lead, Message
-from app.services.manager_chat import ManagerChat
+from app.services.manager_chat import ManagerChat, close_keyboard
 from tests.factories import make_site
 
 CHAT_ID = -1001234567890
@@ -26,7 +32,7 @@ class FakeSender:
         text: str,
         *,
         reply_to_message_id: int | None = None,
-        reply_markup: InlineKeyboardMarkup | None = None,
+        reply_markup: dict[str, Any] | None = None,
     ) -> Sent:
         self.sent.append({"chat_id": chat_id, "text": text, "reply_to": reply_to_message_id})
         return Sent(message_id=100 + len(self.sent))
@@ -125,3 +131,30 @@ async def test_only_the_linked_chat_owns_a_conversation(session: AsyncSession) -
 
     assert await chat.chat_owns_conversation(CHAT_ID, conversation.id)
     assert not await chat.chat_owns_conversation(-42, conversation.id)
+
+
+def test_close_button_matches_what_the_bot_parses() -> None:
+    conversation_id = uuid.uuid4()
+    button = close_keyboard(conversation_id)["inline_keyboard"][0][0]
+
+    assert button["callback_data"] == CloseChat(conversation_id=conversation_id).pack()
+
+
+async def test_bot_api_sender_posts_html_and_keeps_the_token_out_of_errors() -> None:
+    seen: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        if seen["chat_id"] == 1:
+            return httpx.Response(200, json={"ok": True, "result": {"message_id": 42}})
+        return httpx.Response(400, json={"ok": False, "description": "Bad Request: chat not found"})
+
+    sender = BotApiSender("123:secret", httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+
+    sent = await sender.send_message(1, "<b>Hi</b>", reply_to_message_id=7, reply_markup={"x": 1})
+    assert sent.message_id == 42
+    assert seen["parse_mode"] == "HTML"
+    assert seen["reply_parameters"]["message_id"] == 7
+    with pytest.raises(TelegramError) as error:
+        await sender.send_message(2, "Hi")
+    assert "secret" not in str(error.value)
